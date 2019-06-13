@@ -4,17 +4,46 @@ import (
 	"context"
 
 	"nickren/firmament-go/pkg/proto"
+	"nickren/firmament-go/pkg/scheduling/flowscheduler"
+	"nickren/firmament-go/pkg/scheduling/utility"
 )
 
 
 var _ proto.FirmamentSchedulerServer = &schedulerServer{}
 
 type schedulerServer struct {
+	scheduler flowscheduler.Scheduler
+
+	jobMap *utility.JobMap
+	taskMap *utility.TaskMap
+	resourceMap *utility.ResourceMap
+
+	topLevelResID utility.ResourceID
+
+	// Mapping from JobID_t to number of incomplete job tasks
+	jobIncompleteTasksNumMap map[utility.JobID]uint64
+	// Mapping from JobID_t to number of job tasks left to be removed
+	jobTasksNumToRemoveMap map[utility.JobID]uint64
 
 }
 
 func NewSchedulerServer() proto.FirmamentSchedulerServer {
-	return &schedulerServer{}
+	ss := &schedulerServer{
+		jobMap: utility.NewJobMap(),
+		taskMap: utility.NewTaskMap(),
+		resourceMap: utility.NewResourceMap(),
+	}
+
+	// create top level resource node
+	rs := utility.CreateTopLevelResourceStatus()
+	// insert top level resource into resourceMap
+	ss.resourceMap.InsertIfNotPresent(utility.MustResourceIDFromString(rs.Descriptor.Uuid), rs)
+
+	ss.topLevelResID = utility.MustResourceIDFromString(rs.Descriptor.Uuid)
+
+	ss.scheduler = flowscheduler.NewScheduler()
+
+	return ss
 }
 
 func (ss *schedulerServer) Schedule(context.Context, *proto.ScheduleRequest) (*proto.SchedulingDeltas, error) {
