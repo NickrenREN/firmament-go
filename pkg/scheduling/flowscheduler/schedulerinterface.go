@@ -6,22 +6,13 @@ import (
 )
 
 type Scheduler interface {
+	GetTaskBindings() map[utility.TaskID]utility.ResourceID
+
 	// AddJob adds a new job. The job will be scheduled on the next run of the scheduler
 	// if it has any runnable tasks.
 	// jd: JobDescriptor of the job to add
 	// NOTE: This method was originally implemented only by event_scheduler and not flow_scheduler
 	AddJob(jd *proto.JobDescriptor)
-
-	// Finds the resource to which a particular task ID is currently bound.
-    // id: the id of the task for which to do the lookup
-    // return NULL if the task does not exist or is not currently bound.
-    // Otherwise, it returns its resource id
-	BoundResourceForTask(id utility.TaskID) utility.ResourceID
-
-	// Finds the tasks which are bound to a particular resource ID.
-    // id: the id of the resource for which to do the lookup
-    // return a array of task ids
-	BoundTasksForResource(id utility.ResourceID) []utility.TaskID
 
 	// Checks if all running tasks managed by this scheduler are healthy. It
     // invokes failure handlers if any failures are detected.

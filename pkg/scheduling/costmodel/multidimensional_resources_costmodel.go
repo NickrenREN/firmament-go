@@ -4,14 +4,17 @@ import (
 	util "nickren/firmament-go/pkg/scheduling/utility"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
+	"nickren/firmament-go/pkg/scheduling/flowmanager"
 )
 
 type multidimensionalResourcesCostModel struct {
-
+	graphManager flowmanager.GraphManager
 }
 
-func NewCostModel() CostModeler {
-	return &multidimensionalResourcesCostModel{}
+func NewCostModel(graphManager flowmanager.GraphManager) CostModeler {
+	return &multidimensionalResourcesCostModel{
+		graphManager:graphManager,
+	}
 }
 
 func (mrc *multidimensionalResourcesCostModel) TaskToUnscheduledAggCost(util.TaskID) Cost {
