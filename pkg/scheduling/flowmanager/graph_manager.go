@@ -287,6 +287,11 @@ func (gm *graphManager) JobCompleted(id utility.JobID) {
 	gm.removeUnscheduledAggNode(id)
 }
 
+
+func (gm *graphManager) JobRemoved(id utility.JobID) {
+
+}
+
 func (gm *graphManager) PurgeUnconnectedEquivClassNodes() {
 	// NOTE: we could have a subgraph consisting of equiv class nodes.
 	// They would likely not end up being removed in a single
