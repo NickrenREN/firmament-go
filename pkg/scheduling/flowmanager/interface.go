@@ -30,6 +30,8 @@ type GraphManager interface {
 
 	JobCompleted(id utility.JobID)
 
+	JobRemoved(id utility.JobID)
+
 	// Notes from xiang90: I modified the interface a little bit. Originally, the
 	// interface would modify the passed in delta array by appending the scheduling delta.
 	// This is not easy to be done in go. Rr it is not the common way to do it. We return
