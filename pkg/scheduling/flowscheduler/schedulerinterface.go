@@ -80,7 +80,7 @@ type Scheduler interface {
     // by this scheduler.
     // td: the task descriptor of the delegated task
     // id: the id of the resource on which to place the task
-	PlaceDelegatedTask(td *proto.TaskDescriptor, id utility.ResourceID)
+	PlaceDelegatedTask(td *proto.TaskDescriptor, id utility.ResourceID) bool
 
 	// RegisterResource registers a resource with the scheduler, who may subsequently assign
 	// work to this resource.
@@ -127,6 +127,6 @@ type Scheduler interface {
 	// Finds runnable tasks for the job in the argument and adds them to the
     // global runnable set.
     // jd: the descriptor of the job for which to find tasks
-	ComputeRunnableTasksForJob(jd *proto.JobDescriptor) []utility.TaskID
+	ComputeRunnableTasksForJob(jd *proto.JobDescriptor) TaskSet
 
 }
