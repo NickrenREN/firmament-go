@@ -12,6 +12,7 @@ import (
 	"nickren/firmament-go/pkg/scheduling/utility"
 	"time"
 
+	"nickren/firmament-go/pkg/scheduling/utility/queue"
 )
 
 // Set of tasks
@@ -249,6 +250,9 @@ func (s *scheduler) unbindTaskFromResource(td *proto.TaskDescriptor, rID utility
 		return false
 	}
 	rd := resourceStatus.Descriptor
+	if td == nil {
+		return false
+	}
 	// We don't have to remove the task from rd's running tasks because
 	// we've already cleared the list in the scheduling iteration
 	if len(rd.CurrentRunningTasks) == 0 {
@@ -407,46 +411,377 @@ func (sche *scheduler) KillRunningTask(taskID utility.TaskID) {
 	// Check if we have a bound resource for the task and if it is marked as running
 	rID, ok := sche.TaskBindings[taskID]
 	if td.State != proto.TaskDescriptor_RUNNING || !ok {
-		// TODO: This could just be an error instead of a panic
-		log.Panicf("Task:%v not bound or running on any resource", taskID)
+		// TODO: change log lib
+		log.Println("Task:", taskID, " not bound or running on any resource")
+		return
 	}
 	td.State = proto.TaskDescriptor_ABORTED
 
 	// TODO: Firmament project will check !rid, this is a bug there, otherwise, we need to delete the code below
-	// Remove the task's resource binding (as it is no longer currently bound)
 	if !sche.unbindTaskFromResource(td, rID) {
 		log.Panicf("Could not unbind task:%v from resource:%v for eviction\n", taskID, rID)
 	}
 }
 
-func (sche *scheduler) PlaceDelegatedTask(td *proto.TaskDescriptor, id utility.ResourceID) {
+func (sche *scheduler) PlaceDelegatedTask(td *proto.TaskDescriptor, resID utility.ResourceID) bool {
+	taskID := utility.TaskID(td.Uid)
+	resourceStatus := sche.resourceMap.FindPtrOrNull(resID)
+	if resourceStatus == nil {
+		// TODO: log error here
+		log.Println("attempted to place delegated task: ", taskID, " on resource: ", resID, ", which is unknow")
+		return false
+	}
+	rd := resourceStatus.Descriptor
+	if td == nil {
+		log.Panicf("resource descriptor in resource:%v is nil", resID)
+	}
 
+	if rd.State != proto.ResourceDescriptor_RESOURCE_IDLE {
+		log.Println("attempted to place delegated task: ", taskID, " on resource: ", resID, ", which is not idle")
+		return false
+	}
+
+	sche.taskMap.InsertIfNotPresent(taskID, td)
+	sche.HandleTaskPlacement(td, rd)
+	td.State = proto.TaskDescriptor_RUNNING
+	return true
 }
 
 func (sche *scheduler) RegisterResource(rtnd *proto.ResourceTopologyNodeDescriptor) {
+	// event scheduler related work
+	// Do a BFS traversal starting from rtnd root and set each PU in this topology as schedulable
+	toVisit := queue.NewFIFO()
+	toVisit.Push(rtnd)
+	for !toVisit.IsEmpty() {
+		curNode := toVisit.Pop().(*proto.ResourceTopologyNodeDescriptor)
+		// callback
+		curRD := curNode.ResourceDesc
+		if curRD.Type == proto.ResourceDescriptor_RESOURCE_PU {
+			curRD.Schedulable = true
+			if curRD.State == proto.ResourceDescriptor_RESOURCE_UNKNOWN {
+				curRD.State = proto.ResourceDescriptor_RESOURCE_IDLE
+			}
 
+			/*// create an executor for each resource
+			resID, err := utility.ResourceIDFromString(curRD.Uuid)
+			if err != nil {
+				log.Panicf("get resource id from resource uuid error")
+			}
+			new executor(resID...)*/
+		}
+
+		// bfs: add children to queue
+		for _, child := range curNode.Children {
+			toVisit.Push(child)
+		}
+	}
+
+	// flow scheduler related work
+	sche.graphManager.AddResourceTopology(rtnd)
+	if rtnd.ParentId == "" {
+		sche.resourceRoots[rtnd] = struct{}{}
+	}
 }
 
 func (sche *scheduler) ScheduleAllJobs(stat *utility.SchedulerStats) (uint64, []proto.SchedulingDelta) {
 
+	jds := make([]*proto.JobDescriptor, 0)
+	for _, jobDesc := range sche.jobsToSchedule {
+		// If at least one task is runnable in the job, add it for scheduling
+		if len(sche.ComputeRunnableTasksForJob(jobDesc)) > 0 {
+			jds = append(jds, jobDesc)
+		}
+	}
+	// TODO: populate stat info in ScheduleJobs
+	return sche.ScheduleJobs(jds)
 }
 
 func (sche *scheduler) ScheduleJob(jd *proto.JobDescriptor, stats *utility.SchedulerStats) uint64 {
 
+	// implement this later
+	return 0
+}
+
+func (s *scheduler) updateCostModelResourceStats() {
+	// TODO: add log level here, do not always print the noisy log
+	log.Println("updating resource statistics in flow graph")
+	s.graphManager.ComputeTopologyStatistics(s.graphManager.SinkNode(), s.costModel.PrepareStats(),
+		s.costModel.GatherStats(), s.costModel.UpdateStats())
+}
+
+func (s *scheduler) applySchedulingDeltas(deltas []proto.SchedulingDelta) uint64 {
+	numScheduled := uint64(0)
+	for _, delta := range deltas {
+		td := s.taskMap.FindPtrOrNull(utility.TaskID(delta.TaskId))
+		if td == nil {
+			panic("")
+		}
+
+		resID := utility.MustResourceIDFromString(delta.ResourceId)
+		rs := s.resourceMap.FindPtrOrNull(resID)
+		if rs == nil {
+			panic("")
+		}
+
+		switch delta.Type {
+		case proto.SchedulingDelta_NOOP:
+			log.Println("NOOP Delta type:", delta.Type)
+		case proto.SchedulingDelta_PLACE:
+			jd := s.jobMap.FindPtrOrNull(utility.MustJobIDFromString(td.JobId))
+			if jd.State != proto.JobDescriptor_RUNNING {
+				jd.State = proto.JobDescriptor_RUNNING
+			}
+			s.HandleTaskPlacement(td, rs.Descriptor)
+			numScheduled++
+		case proto.SchedulingDelta_PREEMPT:
+			log.Printf("TASK PREEMPTION: task:%v from resource:%v\n", td.Uid, rs.Descriptor.FriendlyName)
+			s.HandleTaskEviction(td, rs.Descriptor)
+		case proto.SchedulingDelta_MIGRATE:
+			log.Printf("TASK MIGRATION: task:%v to resource:%v\n", td.Uid, rs.Descriptor.FriendlyName)
+			s.HandleTaskMigration(td, rs.Descriptor)
+		default:
+			log.Fatalf("Unknown delta type: %v", delta.Type)
+		}
+	}
+	return numScheduled
+}
+
+func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
+	// If it's time to revisit time-dependent costs, do so now, just before
+	// we run the solver.
+	// firmament time manager gets current time
+	curTime := time.Now()
+	shouldUpdate := s.lastUpdateTimeDepentCosts.Add(FLAG_time_dependent_cost_update_frequency)
+	if shouldUpdate.Before(curTime) {
+		// First collect all non-finished jobs
+		// TODO(malte): this can be removed when we've factored archived tasks
+		// and jobs out of the job_map_ into separate data structures.
+		// (cf. issue #24).
+		jobs := make([]*proto.JobDescriptor, 0)
+		for _, job := range s.jobMap.UnsafeGet() {
+			// we only need to reconsider this jon if it is still active
+			if job.State != proto.JobDescriptor_COMPLETED &&
+				job.State != proto.JobDescriptor_FAILED &&
+					job.State != proto.JobDescriptor_ABORTED {
+						jobs = append(jobs, job)
+			}
+		}
+
+		// this will re-visit all jobs and update their time-dependent costs
+		s.graphManager.UpdateTimeDependentCosts(jobs)
+		s.lastUpdateTimeDepentCosts = curTime
+	}
+
+	if s.solverRunCnt % FLAGS_purge_unconnected_ec_frequency == 0 {
+		// periodically remove EC nodes without incoming arcs
+		s.graphManager.PurgeUnconnectedEquivClassNodes()
+	}
+	// clear pus and completed tasks stats
+	s.pusRemovedDuringSolverRun = make(map[uint64]struct{})
+	s.tasksCompletedDuringSloverRun = make(map[uint64]struct{})
+
+	// Run the flow solver! This is where all the juicy goodness happens :)
+	taskMappings := s.solver.Solve()
+	s.solverRunCnt++
+	// firmament will populate max solve runtime and scheduler time stats
+	// and play all the simulation events that happened while the solver was running
+	// ignore here
+
+	deltas := s.graphManager.SchedulingDeltasForPreemptedTasks(taskMappings, s.resourceMap)
+
+	for taskID, resourceID := range taskMappings {
+		_, ok := s.tasksCompletedDuringSloverRun[uint64(taskID)]
+		if ok {
+			// Ignore the task because it has already completed while the solver
+			// was running.
+			continue
+		}
+
+		_, ok = s.pusRemovedDuringSolverRun[uint64(resourceID)]
+		if ok {
+			// We can't place a task on this PU because the PU has been removed
+			// while the solver was running. We will reconsider the task in the
+			// next solver run.
+			continue
+		}
+
+		log.Println("bind task to resource")
+		delta := s.graphManager.NodeBindingToSchedulingDelta(taskID, resourceID, s.TaskBindings)
+		if delta != nil {
+			deltas = append(deltas, *delta)
+		}
+	}
+
+	// Move the time to solver_start_time + solver_run_time if this is not
+	// the first run of a simulation.
+
+	numScheduled := s.applySchedulingDeltas(deltas)
+
+	// TODO: update_resource_topology_capacities??
+	if FLAGS_update_resource_topology_capacities {
+		for rtnd := range s.resourceRoots {
+			s.graphManager.UpdateResourceTopology(rtnd)
+		}
+	}
+
+	return numScheduled, deltas
 }
 
 func (sche *scheduler) ScheduleJobs(jds []*proto.JobDescriptor) (uint64, []proto.SchedulingDelta) {
+	numScheduledTasks := uint64(0)
+	deltas := make([]proto.SchedulingDelta, 0)
 
+	if len(jds) > 0 {
+		// First, we update the cost model's resource topology statistics
+		// (e.g. based on machine load and prior decisions); these need to be
+		// known before AddOrUpdateJobNodes is invoked below, as it may add arcs
+		// depending on these metrics.
+		sche.updateCostModelResourceStats()
+		sche.graphManager.AddOrUpdateJobNodes(jds)
+		numScheduledTasks, deltas = sche.runSchedulingIteration()
+		// TODO: add log level here
+		log.Printf("Scheduling Iteration complete, placed %v tasks\n", numScheduledTasks)
+		// firmament add debug info, ignore here
+
+		// We reset the DIMACS stats here because all the graph changes we make
+		// from now on are going to be included in the next scheduler run.
+		sche.dimacsStats.ResetStats()
+		// TODO: populate total runtime stat in scheduler stats struct
+		// TODO: If the support for the trace generator is ever added then log the dimacs changes
+		// for this iteration before resetting them
+	}
+	return numScheduledTasks, deltas
+
+}
+
+// BindTaskToResource is used to update metadata anytime a task is placed on a some resource by the scheduler
+// either through a placement or migration
+// Event driven scheduler specific method
+func (s *scheduler) bindTaskToResource(td *proto.TaskDescriptor, rd *proto.ResourceDescriptor) {
+	taskID := utility.TaskID(td.Uid)
+	rID := utility.MustResourceIDFromString(rd.Uuid)
+	// Mark resource as busy and record task binding
+	rd.State = proto.ResourceDescriptor_RESOURCE_BUSY
+	rd.CurrentRunningTasks = append(rd.CurrentRunningTasks, uint64(taskID))
+	// Insert mapping into task bindings, must not already exist
+	if _, ok := s.TaskBindings[taskID]; ok {
+		// TODO: revisit this later to check if we need to panic
+		log.Panicf("scheduler/bindTaskToResource: mapping for taskID:%v in taskBindings must not already exist\n", taskID)
+	}
+	s.TaskBindings[taskID] = rID
+	// Update resource bindings, create a binding set if it doesn't exist already
+	if _, ok := s.resourceBindings[rID]; !ok {
+		s.resourceBindings[rID] = make(TaskSet)
+	}
+	s.resourceBindings[rID][taskID] = struct{}{}
 }
 
 func (sche *scheduler) HandleTaskMigration(td *proto.TaskDescriptor, rd *proto.ResourceDescriptor) {
+	taskID := utility.TaskID(td.Uid)
+	oldRID := sche.TaskBindings[taskID]
+	newRID := utility.MustResourceIDFromString(rd.Uuid)
 
+	// Flow scheduler related work
+	// XXX(ionel): HACK! We update scheduledToResource field here
+	// and in the EventDrivenScheduler. We update it here because
+	// TaskMigrated first calls TaskEvict and then TaskSchedule.
+	// TaskSchedule requires scheduledToResource to be up to date.
+	// Hence, we have to set it before we call the method.
+	td.ScheduledToResource = rd.Uuid
+	sche.graphManager.TaskMigrated(taskID, oldRID, newRID)
+
+	// event scheduler related work
+	// Unbind task from old resource and bind to new one
+	rd.State = proto.ResourceDescriptor_RESOURCE_BUSY
+	td.State = proto.TaskDescriptor_RUNNING
+	if !sche.unbindTaskFromResource(td, oldRID) {
+		log.Panicf("Task/Resource binding for taskID:%v to rID:%v must exist\n", taskID, oldRID)
+	}
+	sche.bindTaskToResource(td, rd)
+	// firmament will add event and trace infos here
+}
+
+// ExecuteTask is used to actually execute the task on a resource via an excution handler
+// For our purposes we skip that and only update the meta data to mark the task as running
+// Event driven scheduler specific method
+func (s *scheduler) executeTask(td *proto.TaskDescriptor, rd *proto.ResourceDescriptor) {
+	// This function actually executes the task asynchronously on that resource via an executor
+	// but we don't need that
+	td.State = proto.TaskDescriptor_RUNNING
+	td.ScheduledToResource = rd.Uuid
+	// can add exec and debug actions here
 }
 
 func (sche *scheduler) HandleTaskPlacement(td *proto.TaskDescriptor, rd *proto.ResourceDescriptor) {
+	// flow scheduler related work
+	td.ScheduledToResource = rd.Uuid
+	taskID := utility.TaskID(td.Uid)
+	sche.graphManager.TaskScheduled(taskID, utility.MustResourceIDFromString(rd.Uuid))
 
+	// event scheduler related work
+	sche.bindTaskToResource(td, rd)
+	// remove the task from the ruunable_tasks
+	jobID := utility.MustJobIDFromString(td.JobId)
+	runnablesForJob := sche.runnableTasks[jobID]
+	if runnablesForJob != nil {
+		delete(runnablesForJob, taskID)
+	}
+	sche.executeTask(td, rd)
+
+	// add event and trace infos here
 }
 
-func (sche *scheduler) ComputeRunnableTasksForJob(jd *proto.JobDescriptor) []utility.TaskID {
+// NOTE: This method is not implemented by the flow_scheduler but by the event_driven_sched
+// Our implementation should be to ignore dependencies and mark all runnable tasks as runnable
+// ComputeRunnableTasksForJob finds runnable tasks for the job in the argument and adds them to the
+// global runnable set.
+// jd: the descriptor of the job for which to find tasks
+// Returns the set of tasks that are runnable for this job
+func (sche *scheduler) ComputeRunnableTasksForJob(jd *proto.JobDescriptor) TaskSet {
+	jobID := utility.MustJobIDFromString(jd.Uuid)
+	rootTask := jd.RootTask
+	sche.LazyGraphReduction(rootTask, jobID)
 
+	runnableTasksForJob := sche.runnableTasks[jobID]
+	if runnableTasksForJob != nil {
+		return runnableTasksForJob
+	} else {
+		sche.runnableTasks[jobID] = make(TaskSet)
+		return sche.runnableTasks[jobID]
+	}
+}
+
+// Implementation of lazy graph reduction algorithm, as per p58, fig. 3.5 in
+// Derek Murray's thesis on CIEL.
+func (sche *scheduler) LazyGraphReduction(rootTask *proto.TaskDescriptor, jobId utility.JobID) {
+	log.Println("performing lazy graph reduction")
+	newlyActiveTasks := queue.NewFIFO()
+
+	// TODO: need to revisit this, if we need to roottask concept ?
+	root := sche.taskMap.FindPtrOrNull(utility.TaskID(rootTask.Uid))
+	if root == nil {
+		log.Panicf("root task of job:%v is nil", jobId)
+	}
+
+	// TODO: change the logic below: even if root task is failed, we need to go on scheduling others
+	// only add the root task if it is not already scheduled. running, done or failed
+	if root.State == proto.TaskDescriptor_CREATED || root.State == proto.TaskDescriptor_RUNNING ||
+		root.State == proto.TaskDescriptor_RUNNABLE || root.State == proto.TaskDescriptor_COMPLETED {
+			newlyActiveTasks.Push(root)
+	}
+
+	for !newlyActiveTasks.IsEmpty() {
+		curTask := newlyActiveTasks.Pop().(*proto.TaskDescriptor)
+		// Find any unfulfilled dependencies which will be executed in firmament, ignore here
+
+		// add all children here, firmament will check the dependencies
+		for _, childTask := range curTask.Spawned {
+			newlyActiveTasks.Push(childTask)
+		}
+
+		if curTask.State == proto.TaskDescriptor_CREATED || curTask.State == proto.TaskDescriptor_BLOCKING {
+			curTask.State = proto.TaskDescriptor_RUNNABLE
+			sche.insertTaskIntoRunnables(utility.MustJobIDFromString(curTask.JobId), utility.TaskID(curTask.Uid))
+		}
+	}
 }
