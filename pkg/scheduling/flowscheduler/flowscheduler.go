@@ -720,7 +720,7 @@ func (sche *scheduler) HandleTaskPlacement(td *proto.TaskDescriptor, rd *proto.R
 
 	// event scheduler related work
 	sche.bindTaskToResource(td, rd)
-	// remove the task from the ruunable_tasks
+	// remove the task from the runnable_tasks
 	jobID := utility.MustJobIDFromString(td.JobId)
 	runnablesForJob := sche.runnableTasks[jobID]
 	if runnablesForJob != nil {

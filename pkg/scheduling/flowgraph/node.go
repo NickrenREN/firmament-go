@@ -155,34 +155,34 @@ func (n *Node) IsTaskAssignedOrRunning() bool {
 	if t == nil {
 		log.Fatalf("TaskDescriptor pointer for node:%v is nil\n", n.ID)
 	}
-	return t.State == pb.TaskDescriptor_Assigned || t.State == pb.TaskDescriptor_Running
+	return t.State == pb.TaskDescriptor_ASSIGNED || t.State == pb.TaskDescriptor_RUNNING
 }
 
 func TransformToResourceNodeType(rdPtr *pb.ResourceDescriptor) NodeType {
 	// Using proto3 syntax
 	resourceType := rdPtr.Type
 	switch resourceType {
-	case pb.ResourceDescriptor_ResourcePu:
+	case pb.ResourceDescriptor_RESOURCE_PU:
 		return NodeTypePu
-	case pb.ResourceDescriptor_ResourceCore:
+	case pb.ResourceDescriptor_RESOURCE_CORE:
 		return NodeTypeCore
-	case pb.ResourceDescriptor_ResourceCache:
+	case pb.ResourceDescriptor_RESOURCE_CACHE:
 		return NodeTypeCache
-	case pb.ResourceDescriptor_ResourceNic:
+	case pb.ResourceDescriptor_RESOURCE_NIC:
 		log.Fatalf("Node type not supported yet: %v", resourceType)
-	case pb.ResourceDescriptor_ResourceDisk:
+	case pb.ResourceDescriptor_RESOURCE_DISK:
 		log.Fatalf("Node type not supported yet: %v", resourceType)
-	case pb.ResourceDescriptor_ResourceSsd:
+	case pb.ResourceDescriptor_RESOURCE_SSD:
 		log.Fatalf("Node type not supported yet: %v", resourceType)
-	case pb.ResourceDescriptor_ResourceMachine:
+	case pb.ResourceDescriptor_RESOURCE_MACHINE:
 		return NodeTypeMachine
-	case pb.ResourceDescriptor_ResourceLogical:
+	case pb.ResourceDescriptor_RESOURCE_LOGICAL:
 		log.Fatalf("Node type not supported yet: %v", resourceType)
-	case pb.ResourceDescriptor_ResourceNumaNode:
+	case pb.ResourceDescriptor_RESOURCE_NUMA_NODE:
 		return NodeTypeNuma
-	case pb.ResourceDescriptor_ResourceSocket:
+	case pb.ResourceDescriptor_RESOURCE_SOCKET:
 		return NodeTypeSocket
-	case pb.ResourceDescriptor_ResourceCoordinator:
+	case pb.ResourceDescriptor_RESOURCE_COORDINATOR:
 		return NodeTypeCoordinator
 	default:
 		log.Fatalf("Unknown node type: %v", resourceType)

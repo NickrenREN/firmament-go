@@ -305,7 +305,7 @@ func (gm *graphManager) PurgeUnconnectedEquivClassNodes() {
 }
 
 // Removes the resource, and all of it's children from the flowgraph
-// Updates the capcaities, numRunningTasks and numSlotsBelow all the way
+// Updates the capacities, numRunningTasks and numSlotsBelow all the way
 // from this node up to the root of the flow graph
 func (gm *graphManager) RemoveResourceTopology(rd *pb.ResourceDescriptor) []flowgraph.NodeID {
 	rID := utility.MustResourceIDFromString(rd.Uuid)
@@ -678,7 +678,7 @@ func (gm *graphManager) removeInvalidECPrefArcs(node *flowgraph.Node, prefEcs []
 	// Make a set of the preferred equivalence classes
 	prefECSet := make(map[utility.EquivClass]struct{})
 	for _, ec := range prefEcs {
-		prefECSet[utility.EquivClass(ec)] = struct{}{}
+		prefECSet[ec] = struct{}{}
 	}
 	var toDelete []*flowgraph.Arc
 
@@ -712,7 +712,7 @@ func (gm *graphManager) removeInvalidPrefResArcs(node *flowgraph.Node, prefResou
 	// Make a set of the preferred resources
 	prefResSet := make(map[utility.ResourceID]struct{})
 	for _, rID := range prefResources {
-		prefResSet[utility.ResourceID(rID)] = struct{}{}
+		prefResSet[rID] = struct{}{}
 	}
 	toDelete := make([]*flowgraph.Arc, 0)
 
