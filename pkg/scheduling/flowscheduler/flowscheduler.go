@@ -505,8 +505,7 @@ func (sche *scheduler) ScheduleJob(jd *proto.JobDescriptor, stats *utility.Sched
 func (s *scheduler) updateCostModelResourceStats() {
 	// TODO: add log level here, do not always print the noisy log
 	log.Println("updating resource statistics in flow graph")
-	s.graphManager.ComputeTopologyStatistics(s.graphManager.SinkNode(), s.costModel.PrepareStats(),
-		s.costModel.GatherStats(), s.costModel.UpdateStats())
+	s.graphManager.ComputeTopologyStatistics(s.graphManager.SinkNode())
 }
 
 func (s *scheduler) applySchedulingDeltas(deltas []proto.SchedulingDelta) uint64 {

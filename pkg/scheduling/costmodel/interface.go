@@ -28,6 +28,12 @@ type (
 	CostModelType int64
 )
 
+type Gather func(accumulator, other *flowgraph.Node) *flowgraph.Node
+
+type Prepare func(accumulator *flowgraph.Node)
+
+type Update func(accumulator, other *flowgraph.Node) *flowgraph.Node
+
 //Enum for list of cost models supported
 const (
 	CostModelTrivial CostModelType = iota
@@ -45,6 +51,22 @@ var (
 	ClusterAggregatorEC = util.HashBytesToEquivClass([]byte("CLUSTER_AGG"))
 )
 
+type ArcDescriptor struct {
+	Cost int64
+	Capacity uint64
+	MinFlow uint64
+	Gain float64
+}
+
+func NewArcDescriptor(cost int64, capacity, minFlow uint64) ArcDescriptor {
+	return ArcDescriptor{
+		Cost: cost,
+		Capacity: capacity,
+		MinFlow: minFlow,
+		Gain: 1.0,
+	}
+}
+
 // CostModeler provides APIs:
 // - Tell the cost of arcs so that graph manager can apply them in graph.
 // - Add, remove tasks, machines (resources) for the cost modeler to update
@@ -56,37 +78,37 @@ type CostModeler interface {
 	// The method should return a monotonically increasing value upon subsequent
 	// calls. It is used to adjust the cost of leaving a task unscheduled after
 	// each iteration.
-	TaskToUnscheduledAggCost(util.TaskID) Cost
-	UnscheduledAggToSinkCost(util.JobID) Cost
+	TaskToUnscheduledAgg(util.TaskID) ArcDescriptor
 
-	// Get the cost of a preference arc from a task node to a resource node.
+	// TODO(ionel): The returned capacity is ignored because the cost models
+	// do not set it correctly
+	UnscheduledAggToSink(util.JobID) ArcDescriptor
 
-	TaskToResourceNodeCost(util.TaskID, util.ResourceID) Cost
+	// Get the cost, the capacity and the minimum flow of a preference arc from a task node to a resource node.
+	TaskToResourceNode(util.TaskID, util.ResourceID) ArcDescriptor
 
-	// Get the cost of an arc between two resource nodes.
+	// Get the cost, the capacity and the minimum flow of an arc between two resource nodes.
 
-	ResourceNodeToResourceNodeCost(source, destination *pb.ResourceDescriptor) Cost
+	ResourceNodeToResourceNode(source, destination *pb.ResourceDescriptor) ArcDescriptor
 
-	// Get the cost of an arc from a resource to the sink.
-	LeafResourceNodeToSinkCost(util.ResourceID) Cost
+	// Get the cost, the capacity and the minimum flow of an arc from a resource to the sink.
+	LeafResourceNodeToSink(util.ResourceID) ArcDescriptor
 
 	// Costs pertaining to preemption (i.e. already running tasks)
-	TaskContinuationCost(util.TaskID) Cost
-	TaskPreemptionCost(util.TaskID) Cost
+	TaskContinuation(util.TaskID) ArcDescriptor
+	TaskPreemption(util.TaskID) ArcDescriptor
 
-	// Get the cost of an arc from a task node to an equivalence class node.
-	TaskToEquivClassAggregator(util.TaskID, util.EquivClass) Cost
+	// Get the cost, the capacity and the minimum flow of an arc from a task node to an equivalence class node.
+	TaskToEquivClassAggregator(util.TaskID, util.EquivClass) ArcDescriptor
 
-	// Get the cost of an arc from an equivalence class node to a resource node,
-	// and free slots below this node in graph. The free slots information can be used to
-	// optimize network flow algorithm.
-	EquivClassToResourceNode(util.EquivClass, util.ResourceID) (Cost, uint64)
+	// Get the cost, the capacity and the minimum flow of an arc from an equivalence class node to a resource node
+	EquivClassToResourceNode(util.EquivClass, util.ResourceID) ArcDescriptor
 
-	// Get the cost and the capacity of an arc from an equivalence class node to
+	// Get the cost, the capacity and the minimum flow of an arc from an equivalence class node to
 	// another equivalence class node.
 	// @param tec1 the source equivalence class
 	// @param tec2 the destination equivalence class
-	EquivClassToEquivClass(tec1, tec2 util.EquivClass) (Cost, uint64)
+	EquivClassToEquivClass(tec1, tec2 util.EquivClass) ArcDescriptor
 
 	// Get the equivalence classes of a task.
 	// @param task_id the task id for which to get the equivalence classes
