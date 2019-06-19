@@ -17,43 +17,43 @@ func NewCostModel(graphManager flowmanager.GraphManager) CostModeler {
 	}
 }
 
-func (mrc *multidimensionalResourcesCostModel) TaskToUnscheduledAggCost(util.TaskID) Cost {
+func (mrc *multidimensionalResourcesCostModel) TaskToUnscheduledAgg(util.TaskID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) UnscheduledAggToSinkCost(util.JobID) Cost {
+func (mrc *multidimensionalResourcesCostModel) UnscheduledAggToSink(util.JobID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) TaskToResourceNodeCost(util.TaskID, util.ResourceID) Cost {
+func (mrc *multidimensionalResourcesCostModel) TaskToResourceNode(util.TaskID, util.ResourceID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) ResourceNodeToResourceNodeCost(source, destination *pb.ResourceDescriptor) Cost {
+func (mrc *multidimensionalResourcesCostModel) ResourceNodeToResourceNode(source, destination *pb.ResourceDescriptor) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) LeafResourceNodeToSinkCost(util.ResourceID) Cost {
+func (mrc *multidimensionalResourcesCostModel) LeafResourceNodeToSink(util.ResourceID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) TaskContinuationCost(util.TaskID) Cost {
+func (mrc *multidimensionalResourcesCostModel) TaskContinuation(util.TaskID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) TaskPreemptionCost(util.TaskID) Cost {
+func (mrc *multidimensionalResourcesCostModel) TaskPreemption(util.TaskID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) TaskToEquivClassAggregator(util.TaskID, util.EquivClass) Cost {
+func (mrc *multidimensionalResourcesCostModel) TaskToEquivClassAggregator(util.TaskID, util.EquivClass) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) EquivClassToResourceNode(util.EquivClass, util.ResourceID) (Cost, uint64) {
+func (mrc *multidimensionalResourcesCostModel) EquivClassToResourceNode(util.EquivClass, util.ResourceID) ArcDescriptor {
 
 }
 
-func (mrc *multidimensionalResourcesCostModel) EquivClassToEquivClass(tec1, tec2 util.EquivClass) (Cost, uint64) {
+func (mrc *multidimensionalResourcesCostModel) EquivClassToEquivClass(tec1, tec2 util.EquivClass) ArcDescriptor {
 
 }
 
