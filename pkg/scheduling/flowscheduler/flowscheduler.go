@@ -526,6 +526,7 @@ func (s *scheduler) applySchedulingDeltas(deltas []proto.SchedulingDelta) uint64
 		case proto.SchedulingDelta_NOOP:
 			log.Println("NOOP Delta type:", delta.Type)
 		case proto.SchedulingDelta_PLACE:
+			// Tag the job to which this task belongs as running
 			jd := s.jobMap.FindPtrOrNull(utility.MustJobIDFromString(td.JobId))
 			if jd.State != proto.JobDescriptor_RUNNING {
 				jd.State = proto.JobDescriptor_RUNNING
