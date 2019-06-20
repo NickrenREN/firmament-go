@@ -19,13 +19,12 @@ import (
 	"strconv"
 	"sync"
 
-	"nickren/firmament-go/pkg/scheduling/utility"
-	"nickren/firmament-go/pkg/scheduling/utility/queue"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/costmodel"
 	"nickren/firmament-go/pkg/scheduling/dimacs"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
-
+	"nickren/firmament-go/pkg/scheduling/utility"
+	"nickren/firmament-go/pkg/scheduling/utility/queue"
 )
 
 var _ GraphManager = &graphManager{}
@@ -78,19 +77,19 @@ func NewGraphManager(costModeler costmodel.CostModeler, leafResourceIDs map[util
 	// We do not create a cluster aggregator node here, since not all cost models use one
 	// Instead, cost models add it as a special equivalence class.
 	gm := &graphManager{
-		dimacsStats:      dimacsStats,
-		leafResourceIDs:  leafResourceIDs,
-		cm:               cm,
-		costModeler:      costModeler,
-		resourceToNode:   make(map[utility.ResourceID]*flowgraph.Node),
-		taskToNode:       make(map[utility.TaskID]*flowgraph.Node),
-		taskECToNode:     make(map[utility.EquivClass]*flowgraph.Node),
-		jobUnschedToNode: make(map[utility.JobID]*flowgraph.Node),
-		taskToRunningArc: make(map[utility.TaskID]*flowgraph.Arc),
-		nodeToParentNode: make(map[*flowgraph.Node]*flowgraph.Node),
-		leafNodeIDs:      make(map[flowgraph.NodeID]struct{}),
-		sinkNode:         sinkNode,
-		MaxTasksPerPu:    maxTasksPerPu,
+		dimacsStats:         dimacsStats,
+		leafResourceIDs:     leafResourceIDs,
+		cm:                  cm,
+		costModeler:         costModeler,
+		resourceToNode:      make(map[utility.ResourceID]*flowgraph.Node),
+		taskToNode:          make(map[utility.TaskID]*flowgraph.Node),
+		taskECToNode:        make(map[utility.EquivClass]*flowgraph.Node),
+		jobUnschedToNode:    make(map[utility.JobID]*flowgraph.Node),
+		taskToRunningArc:    make(map[utility.TaskID]*flowgraph.Arc),
+		nodeToParentNode:    make(map[*flowgraph.Node]*flowgraph.Node),
+		leafNodeIDs:         make(map[flowgraph.NodeID]struct{}),
+		sinkNode:            sinkNode,
+		MaxTasksPerPu:       maxTasksPerPu,
 		curTraversalCounter: 0,
 	}
 	return gm
@@ -299,7 +298,6 @@ func (gm *graphManager) JobCompleted(id utility.JobID) {
 	// removed.
 	gm.removeUnscheduledAggNode(id)
 }
-
 
 func (gm *graphManager) JobRemoved(id utility.JobID) {
 	// We don't have to do anything else here. The task nodes have already been

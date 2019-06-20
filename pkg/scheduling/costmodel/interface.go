@@ -18,9 +18,9 @@
 package costmodel
 
 import (
-	util "nickren/firmament-go/pkg/scheduling/utility"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
+	util "nickren/firmament-go/pkg/scheduling/utility"
 )
 
 type (
@@ -52,18 +52,18 @@ var (
 )
 
 type ArcDescriptor struct {
-	Cost int64
+	Cost     int64
 	Capacity uint64
-	MinFlow uint64
-	Gain float64
+	MinFlow  uint64
+	Gain     float64
 }
 
 func NewArcDescriptor(cost int64, capacity, minFlow uint64) ArcDescriptor {
 	return ArcDescriptor{
-		Cost: cost,
+		Cost:     cost,
 		Capacity: capacity,
-		MinFlow: minFlow,
-		Gain: 1.0,
+		MinFlow:  minFlow,
+		Gain:     1.0,
 	}
 }
 
@@ -155,4 +155,3 @@ type CostModeler interface {
 
 	DebugInfoCSV() string
 }
-

@@ -114,4 +114,3 @@ type GraphChangeManager interface {
 
 	CheckNodeType(flowgraph.NodeID, flowgraph.NodeType) bool
 }
-

@@ -69,4 +69,3 @@ func (f *fifo) Len() int {
 func (f *fifo) IsEmpty() bool {
 	return f.Len() == 0
 }
-

@@ -2,6 +2,7 @@ package flowscheduler
 
 import (
 	"log"
+	"time"
 
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/costmodel"
@@ -10,7 +11,6 @@ import (
 	"nickren/firmament-go/pkg/scheduling/flowmanager"
 	ss "nickren/firmament-go/pkg/scheduling/solver"
 	"nickren/firmament-go/pkg/scheduling/utility"
-	"time"
 
 	"nickren/firmament-go/pkg/scheduling/utility/queue"
 )
@@ -19,11 +19,11 @@ import (
 type TaskSet map[utility.TaskID]struct{}
 
 type scheduler struct {
-	enableEviction bool
+	enableEviction  bool
 	enableMigration bool
 
-	jobMap *utility.JobMap
-	taskMap *utility.TaskMap
+	jobMap      *utility.JobMap
+	taskMap     *utility.TaskMap
 	resourceMap *utility.ResourceMap
 
 	// Event driven scheduler specific fields
@@ -39,19 +39,17 @@ type scheduler struct {
 	// and simply declare all tasks as runnable
 	runnableTasks map[utility.JobID]TaskSet
 
-
 	// coordinatorResId utility.ResourceID
 
-
 	graphManager flowmanager.GraphManager
-	solver ss.Solver
-	costModel costmodel.CostModeler
+	solver       ss.Solver
+	costModel    costmodel.CostModeler
 
 	lastUpdateTimeDepentCosts time.Time
 
 	leafResourceIDs map[utility.ResourceID]struct{}
 
-	pusRemovedDuringSolverRun map[uint64]struct{}
+	pusRemovedDuringSolverRun     map[uint64]struct{}
 	tasksCompletedDuringSloverRun map[uint64]struct{}
 
 	dimacsStats *dimacs.ChangeStats
@@ -64,13 +62,13 @@ type scheduler struct {
 func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root *proto.ResourceTopologyNodeDescriptor,
 	taskMap *utility.TaskMap) Scheduler {
 	s := &scheduler{
-		jobMap: jobMap,
+		jobMap:      jobMap,
 		resourceMap: resourceMap,
-		taskMap: taskMap,
+		taskMap:     taskMap,
 
 		lastUpdateTimeDepentCosts: time.Now(),
-		solverRunCnt: 0,
-		leafResourceIDs: make(map[utility.ResourceID]struct{}),
+		solverRunCnt:              0,
+		leafResourceIDs:           make(map[utility.ResourceID]struct{}),
 
 		dimacsStats: &dimacs.ChangeStats{},
 
@@ -81,7 +79,7 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 		runnableTasks:    make(map[utility.JobID]TaskSet),
 
 		tasksCompletedDuringSloverRun: make(map[uint64]struct{}),
-		pusRemovedDuringSolverRun: make(map[uint64]struct{}),
+		pusRemovedDuringSolverRun:     make(map[uint64]struct{}),
 	}
 
 	// TODO: refactor max tasks per PU
@@ -125,14 +123,14 @@ func (sche *scheduler) handleTasksFromDeregisterResource(rtnd *proto.ResourceTop
 		return
 	}
 
-	for taskID, _ :=range tasks {
+	for taskID := range tasks {
 		taskDesc := sche.taskMap.FindPtrOrNull(taskID)
 		if taskDesc == nil {
 			log.Panicf("Descriptor for task:%v must exist in taskMap\n", taskID)
 		}
 
 		// TODO: add this flag to Scheduler struct
-		if (FLAG_reschedule_tasks_on_node_failure) {
+		if FLAG_reschedule_tasks_on_node_failure {
 			sche.HandleTaskEviction(taskDesc, resourceDesc)
 		} else {
 			sche.HandleTaskFailure(taskDesc)
@@ -212,7 +210,6 @@ func (sche *scheduler) DeregisterResource(rtnd *proto.ResourceTopologyNodeDescri
 	} else {
 		log.Println("Deregister a node without a parent")
 	}
-
 
 }
 
@@ -567,8 +564,8 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 			// we only need to reconsider this jon if it is still active
 			if job.State != proto.JobDescriptor_COMPLETED &&
 				job.State != proto.JobDescriptor_FAILED &&
-					job.State != proto.JobDescriptor_ABORTED {
-						jobs = append(jobs, job)
+				job.State != proto.JobDescriptor_ABORTED {
+				jobs = append(jobs, job)
 			}
 		}
 
@@ -577,7 +574,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 		s.lastUpdateTimeDepentCosts = curTime
 	}
 
-	if s.solverRunCnt % FLAGS_purge_unconnected_ec_frequency == 0 {
+	if s.solverRunCnt%FLAGS_purge_unconnected_ec_frequency == 0 {
 		// periodically remove EC nodes without incoming arcs
 		s.graphManager.PurgeUnconnectedEquivClassNodes()
 	}
@@ -772,7 +769,7 @@ func (sche *scheduler) LazyGraphReduction(rootTask *proto.TaskDescriptor, jobId 
 	// only add the root task if it is not already scheduled. running, done or failed
 	if root.State == proto.TaskDescriptor_CREATED || root.State == proto.TaskDescriptor_RUNNING ||
 		root.State == proto.TaskDescriptor_RUNNABLE || root.State == proto.TaskDescriptor_COMPLETED {
-			newlyActiveTasks.Push(root)
+		newlyActiveTasks.Push(root)
 	}
 
 	for !newlyActiveTasks.IsEmpty() {

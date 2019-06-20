@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"testing"
 
-	"nickren/firmament-go/pkg/scheduling/utility"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/costmodel"
 	"nickren/firmament-go/pkg/scheduling/dimacs"
+	"nickren/firmament-go/pkg/scheduling/utility"
 )
 
 func TestAddResourceNode(t *testing.T) {
