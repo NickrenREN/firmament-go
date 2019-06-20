@@ -45,4 +45,3 @@ func NewArc(srcNode, dstNode *Node) *Arc {
 	}
 	return a
 }
-

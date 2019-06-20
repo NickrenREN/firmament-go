@@ -17,8 +17,8 @@ package flowgraph
 import (
 	"log"
 
-	types "nickren/firmament-go/pkg/scheduling/utility"
 	pb "nickren/firmament-go/pkg/proto"
+	types "nickren/firmament-go/pkg/scheduling/utility"
 )
 
 //Enum for flow node type

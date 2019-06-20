@@ -15,7 +15,7 @@ type Scheduler interface {
 	AddJob(jd *proto.JobDescriptor)
 
 	// Checks if all running tasks managed by this scheduler are healthy. It
-    // invokes failure handlers if any failures are detected.
+	// invokes failure handlers if any failures are detected.
 	CheckRunningTasksHealth()
 
 	// DeregisterResource unregisters a resource ID from the scheduler. No-op if the resource ID is
@@ -29,7 +29,7 @@ type Scheduler interface {
 	HandleJobCompletion(id utility.JobID)
 
 	// Handles the removal of a job. It should only be called after all job's tasks are removed.
-    // id: the id of the job to be removed
+	// id: the id of the job to be removed
 	HandleJobRemoval(id utility.JobID)
 
 	// HandleTaskCompletion handles the completion of a task. This usually involves freeing up its
@@ -43,8 +43,8 @@ type Scheduler interface {
 
 	// Handles the failure of an attempt to delegate a task to a subordinate
 	// coordinator. This can happen because the resource is no longer there (it
-    // failed) or it is no longer idle (someone else put a task there).
-    // td: the descriptor of the task that could not be delegated
+	// failed) or it is no longer idle (someone else put a task there).
+	// td: the descriptor of the task that could not be delegated
 	HandleTaskDelegationFailure(td *proto.TaskDescriptor)
 
 	HandleTaskDelegationSuccess(td *proto.TaskDescriptor)
@@ -61,14 +61,14 @@ type Scheduler interface {
 	HandleTaskFailure(td *proto.TaskDescriptor)
 
 	// Updates the state using the task's report.
-    // report: the report to use
-    // td: the descriptor of the task for which to update the state.
+	// report: the report to use
+	// td: the descriptor of the task for which to update the state.
 	HandleTaskFinalReport(report *proto.TaskFinalReport, td *proto.TaskDescriptor)
 
 	// Handles the removal of a task. If the task is running, then
-    // it is killed, otherwise the task is just removed from internal data
-    // structures.
-    // td: the task descriptor of the task to remove
+	// it is killed, otherwise the task is just removed from internal data
+	// structures.
+	// td: the task descriptor of the task to remove
 	HandleTaskRemoval(td *proto.TaskDescriptor)
 
 	// KillRunningTask kills a running task.
@@ -77,9 +77,9 @@ type Scheduler interface {
 	KillRunningTask(id utility.TaskID)
 
 	// Places a task delegated from a superior coordinator to a resource managed
-    // by this scheduler.
-    // td: the task descriptor of the delegated task
-    // id: the id of the resource on which to place the task
+	// by this scheduler.
+	// td: the task descriptor of the delegated task
+	// id: the id of the resource on which to place the task
 	PlaceDelegatedTask(td *proto.TaskDescriptor, id utility.ResourceID) bool
 
 	// RegisterResource registers a resource with the scheduler, who may subsequently assign
@@ -96,10 +96,10 @@ type Scheduler interface {
 	ScheduleAllJobs(stat *utility.SchedulerStats) (uint64, []proto.SchedulingDelta)
 
 	// Schedules all runnable tasks in a job.
-    // WARNING: Using this method is inefficient because for every
-    // invocation it traverses the entire resource graph.
-    // jd: the job descriptor for which to schedule tasks
-    // return the number of tasks scheduled
+	// WARNING: Using this method is inefficient because for every
+	// invocation it traverses the entire resource graph.
+	// jd: the job descriptor for which to schedule tasks
+	// return the number of tasks scheduled
 	ScheduleJob(jd *proto.JobDescriptor, stats *utility.SchedulerStats) uint64
 
 	// ScheduleJobs schedules the given jobs. This is called by ScheduleAllJobs()
@@ -125,8 +125,7 @@ type Scheduler interface {
 	HandleTaskPlacement(td *proto.TaskDescriptor, rd *proto.ResourceDescriptor)
 
 	// Finds runnable tasks for the job in the argument and adds them to the
-    // global runnable set.
-    // jd: the descriptor of the job for which to find tasks
+	// global runnable set.
+	// jd: the descriptor of the job for which to find tasks
 	ComputeRunnableTasksForJob(jd *proto.JobDescriptor) TaskSet
-
 }

@@ -82,4 +82,3 @@ func GenerateJobID() JobID {
 func GenerateTaskID() TaskID {
 	return TaskID(RandUint64())
 }
-

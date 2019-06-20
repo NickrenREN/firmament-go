@@ -2,7 +2,6 @@ package utility
 
 import (
 	pb "nickren/firmament-go/pkg/proto"
-
 )
 
 type ResourceStatus struct {
@@ -16,9 +15,9 @@ func CreateTopLevelResourceStatus() *ResourceStatus {
 	resID := GenerateResourceID()
 
 	rd := &pb.ResourceDescriptor{
-		Uuid:         string(resID),
+		Uuid: string(resID),
 		// TaskCapacity: uint64(0),
-		Type:         pb.ResourceDescriptor_RESOURCE_COORDINATOR,
+		Type: pb.ResourceDescriptor_RESOURCE_COORDINATOR,
 		// Default state and type
 		State:       pb.ResourceDescriptor_RESOURCE_IDLE,
 		Schedulable: true,
@@ -29,9 +28,9 @@ func CreateTopLevelResourceStatus() *ResourceStatus {
 	}
 
 	return &ResourceStatus{
-		Descriptor: rd,
-		TopologyNode: rtnd,
-		EndpointUri: "root_resource",
+		Descriptor:    rd,
+		TopologyNode:  rtnd,
+		EndpointUri:   "root_resource",
 		LastHeartbeat: 0,
 	}
 }

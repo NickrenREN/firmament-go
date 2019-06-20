@@ -2,22 +2,21 @@ package firmamentservice
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowscheduler"
 	"nickren/firmament-go/pkg/scheduling/utility"
-	"log"
-	"fmt"
 )
-
 
 var _ proto.FirmamentSchedulerServer = &schedulerServer{}
 
 type schedulerServer struct {
 	scheduler flowscheduler.Scheduler
 
-	jobMap *utility.JobMap
-	taskMap *utility.TaskMap
+	jobMap      *utility.JobMap
+	taskMap     *utility.TaskMap
 	resourceMap *utility.ResourceMap
 
 	topLevelResID utility.ResourceID
@@ -26,13 +25,12 @@ type schedulerServer struct {
 	jobIncompleteTasksNumMap map[utility.JobID]uint64
 	// Mapping from JobID_t to number of job tasks left to be removed
 	jobTasksNumToRemoveMap map[utility.JobID]uint64
-
 }
 
 func NewSchedulerServer() proto.FirmamentSchedulerServer {
 	ss := &schedulerServer{
-		jobMap: utility.NewJobMap(),
-		taskMap: utility.NewTaskMap(),
+		jobMap:      utility.NewJobMap(),
+		taskMap:     utility.NewTaskMap(),
 		resourceMap: utility.NewResourceMap(),
 	}
 
@@ -57,9 +55,13 @@ func (ss *schedulerServer) handlePlaceDelta(delta proto.SchedulingDelta) {
 	// task.StartTime =
 }
 
-func (ss *schedulerServer) handlePreemptionDelta(delta proto.SchedulingDelta) {}
+func (ss *schedulerServer) handlePreemptionDelta(delta proto.SchedulingDelta) {
+	// TODO: implement this
+}
 
-func (ss *schedulerServer) handleMigrationDelta(delta proto.SchedulingDelta) {}
+func (ss *schedulerServer) handleMigrationDelta(delta proto.SchedulingDelta) {
+	// TODO: implement this
+}
 
 func (ss *schedulerServer) Schedule(context.Context, *proto.ScheduleRequest) (*proto.SchedulingDeltas, error) {
 	schedulerStats := &utility.SchedulerStats{}
@@ -269,9 +271,9 @@ func (ss *schedulerServer) AddResource(rtnd *proto.ResourceTopologyNodeDescripto
 	rd := rtnd.ResourceDesc
 	resID := utility.MustResourceIDFromString(rd.Uuid)
 	rs := &utility.ResourceStatus{
-		Descriptor: rd,
-		TopologyNode: rtnd,
-		EndpointUri: rd.FriendlyName,
+		Descriptor:    rd,
+		TopologyNode:  rtnd,
+		EndpointUri:   rd.FriendlyName,
 		LastHeartbeat: 0,
 	}
 	ss.resourceMap.InsertIfNotPresent(resID, rs)

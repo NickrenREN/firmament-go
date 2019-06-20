@@ -1,10 +1,10 @@
 package costmodel
 
 import (
-	util "nickren/firmament-go/pkg/scheduling/utility"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
 	"nickren/firmament-go/pkg/scheduling/flowmanager"
+	util "nickren/firmament-go/pkg/scheduling/utility"
 )
 
 type multidimensionalResourcesCostModel struct {
@@ -13,7 +13,7 @@ type multidimensionalResourcesCostModel struct {
 
 func NewCostModel(graphManager flowmanager.GraphManager) CostModeler {
 	return &multidimensionalResourcesCostModel{
-		graphManager:graphManager,
+		graphManager: graphManager,
 	}
 }
 

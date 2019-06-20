@@ -20,6 +20,6 @@ func NewSchedulerStats() *SchedulerStats {
 	return &SchedulerStats{
 		algorithmRuntime: math.MaxUint64,
 		schedulerRuntime: 0,
-		totalRuntime: 0,
+		totalRuntime:     0,
 	}
 }

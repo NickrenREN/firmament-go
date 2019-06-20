@@ -74,4 +74,3 @@ func (ig *idGen) populateUnusedIds(newNextID uint64) {
 	}
 	ig.nextID = newNextID
 }
-

@@ -199,4 +199,3 @@ func (fg *Graph) PopulateUnusedIds(newNextID NodeID) {
 	}
 	fg.nextID = newNextID
 }
-

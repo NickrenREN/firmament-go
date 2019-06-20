@@ -1,6 +1,5 @@
 package utility
 
-
 import (
 	"sync"
 
