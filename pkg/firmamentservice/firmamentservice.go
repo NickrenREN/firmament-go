@@ -57,9 +57,13 @@ func (ss *schedulerServer) handlePlaceDelta(delta proto.SchedulingDelta) {
 	// task.StartTime =
 }
 
-func (ss *schedulerServer) handlePreemptionDelta(delta proto.SchedulingDelta) {}
+func (ss *schedulerServer) handlePreemptionDelta(delta proto.SchedulingDelta) {
+	// TODO: implement this
+}
 
-func (ss *schedulerServer) handleMigrationDelta(delta proto.SchedulingDelta) {}
+func (ss *schedulerServer) handleMigrationDelta(delta proto.SchedulingDelta) {
+	// TODO: implement this
+}
 
 func (ss *schedulerServer) Schedule(context.Context, *proto.ScheduleRequest) (*proto.SchedulingDeltas, error) {
 	schedulerStats := &utility.SchedulerStats{}

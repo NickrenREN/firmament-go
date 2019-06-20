@@ -84,7 +84,8 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 		pusRemovedDuringSolverRun: make(map[uint64]struct{}),
 	}
 
-	s.graphManager = flowmanager.NewGraphManager()
+	// TODO: refactor max tasks per PU
+	s.graphManager = flowmanager.NewGraphManager(s.costModel, s.leafResourceIDs, s.dimacsStats, 100)
 	// Set up the initial flow graph
 	s.graphManager.AddResourceTopology(root)
 
@@ -193,7 +194,11 @@ func (sche *scheduler) DeregisterResource(rtnd *proto.ResourceTopologyNodeDescri
 	// If it is implemented in an event based fashion then we need to implement locks
 	// as well as make sure we don't place any tasks on the PUs that were removed
 	// while the solver was running. In a non event based setting this won't be an issue.
-	sche.graphManager.RemoveResourceTopology(rtnd, &sche.pusRemovedDuringSolverRun)
+	pusRemovedDuringSolverRun := sche.graphManager.RemoveResourceTopology(rtnd.ResourceDesc)
+
+	for pu := range pusRemovedDuringSolverRun {
+		sche.pusRemovedDuringSolverRun[uint64(pu)] = struct{}{}
+	}
 
 	// If it is an entire machine that was removed
 	if rtnd.ParentId != "" {
