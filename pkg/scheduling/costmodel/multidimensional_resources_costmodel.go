@@ -3,7 +3,7 @@ package costmodel
 import (
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
-	"nickren/firmament-go/pkg/scheduling/flowmanager"
+	//"nickren/firmament-go/pkg/scheduling/flowmanager"
 	util "nickren/firmament-go/pkg/scheduling/utility"
 )
 
@@ -13,7 +13,8 @@ type multidimensionalResourcesCostModel struct {
 	// leafResIDset is passed in and maintained by user.
 	leafResIDset map[util.ResourceID]struct{}
 
-	graphManager flowmanager.GraphManager
+	// TODO: double check if this is needed
+	// graphManager flowmanager.GraphManager
 
 }
 
@@ -25,9 +26,9 @@ func NewCostModel(resourceMap *util.ResourceMap, taskMap *util.TaskMap, leafResI
 	}
 }
 
-func (mrc *multidimensionalResourcesCostModel) SetFlowGraphManager(manager flowmanager.GraphManager) {
-	mrc.graphManager = manager
-}
+/*func (mrc *multidimensionalResourcesCostModel) SetFlowGraphManager(manager flowmanager.GraphManager) {
+	// mrc.graphManager = manager
+}*/
 
 func (mrc *multidimensionalResourcesCostModel) TaskToUnscheduledAgg(util.TaskID) ArcDescriptor {
 	return ArcDescriptor{}

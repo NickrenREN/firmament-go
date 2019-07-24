@@ -104,7 +104,7 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 	s.graphManager.AddResourceTopology(root)
 
 	// set cost model graph manager
-	s.costModel.SetFlowGraphManager(s.graphManager)
+	//s.costModel.SetFlowGraphManager(s.graphManager)
 
 	// Set up the solver, which starts the flow solver
 	s.solver = ss.NewSolver(s.graphManager)
