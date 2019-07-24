@@ -361,12 +361,15 @@ func (ss *schedulerServer) UpdateNodeLabels(oldRtnd, newRtnd *proto.ResourceTopo
 	oldRD := oldRtnd.ResourceDesc
 	newRD := newRtnd.ResourceDesc
 
-	// TODO: copy node labels from new node to old node
-	/*oldRD.clearLabels()
+	oldRD.Labels = make([]*proto.Label, len(newRD.Labels))
 	for _, label := range newRD.Labels {
-		labelCopy := label.Copy()
-		oldRD.addLabel(labelCopy)
-	}*/
+		labelCopy := &proto.Label{
+			Key: label.Key,
+			Value: label.Value,
+			// TODO: copy other fields
+		}
+		oldRD.Labels = append(oldRD.Labels, labelCopy)
+	}
 }
 
 func (ss *schedulerServer) DFSTraverseResourceProtobufTreesReturnRTNDs(oldRtnd, newRtnd *proto.ResourceTopologyNodeDescriptor) {
