@@ -19,8 +19,15 @@ import (
 type TaskSet map[utility.TaskID]struct{}
 
 type scheduler struct {
+	// TODO: find a way to set these boolean values
 	enableEviction  bool
 	enableMigration bool
+
+	rescheduleTasksOnNodeFailure bool
+	updateResourceTopologyCapacities bool
+	timeDependentCostUpdateFrequency uint64
+	purgeUnconnectedEcFrequency uint64
+
 
 	jobMap      *utility.JobMap
 	taskMap     *utility.TaskMap
@@ -61,14 +68,23 @@ type scheduler struct {
 
 func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root *proto.ResourceTopologyNodeDescriptor,
 	taskMap *utility.TaskMap) Scheduler {
+	// Initialize graph manager with cost model
+	leafResourceIDs := make(map[utility.ResourceID]struct{})
+
+	costModel := costmodel.NewCostModel(resourceMap, taskMap, leafResourceIDs)
+
 	s := &scheduler{
+		updateResourceTopologyCapacities: true,
+
 		jobMap:      jobMap,
 		resourceMap: resourceMap,
 		taskMap:     taskMap,
 
 		lastUpdateTimeDepentCosts: time.Now(),
 		solverRunCnt:              0,
-		leafResourceIDs:           make(map[utility.ResourceID]struct{}),
+		leafResourceIDs:           leafResourceIDs,
+
+		costModel: costModel,
 
 		dimacsStats: &dimacs.ChangeStats{},
 
@@ -87,8 +103,10 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 	// Set up the initial flow graph
 	s.graphManager.AddResourceTopology(root)
 
-	s.costModel = costmodel.NewCostModel(s.graphManager)
+	// set cost model graph manager
+	//s.costModel.SetFlowGraphManager(s.graphManager)
 
+	// Set up the solver, which starts the flow solver
 	s.solver = ss.NewSolver(s.graphManager)
 
 	return s
@@ -130,7 +148,7 @@ func (sche *scheduler) handleTasksFromDeregisterResource(rtnd *proto.ResourceTop
 		}
 
 		// TODO: add this flag to Scheduler struct
-		if FLAG_reschedule_tasks_on_node_failure {
+		if sche.rescheduleTasksOnNodeFailure {
 			sche.HandleTaskEviction(taskDesc, resourceDesc)
 		} else {
 			sche.HandleTaskFailure(taskDesc)
@@ -553,7 +571,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	// we run the solver.
 	// firmament time manager gets current time
 	curTime := time.Now()
-	shouldUpdate := s.lastUpdateTimeDepentCosts.Add(FLAG_time_dependent_cost_update_frequency)
+	shouldUpdate := s.lastUpdateTimeDepentCosts.Add(time.Duration(s.timeDependentCostUpdateFrequency) * time.Second)
 	if shouldUpdate.Before(curTime) {
 		// First collect all non-finished jobs
 		// TODO(malte): this can be removed when we've factored archived tasks
@@ -574,7 +592,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 		s.lastUpdateTimeDepentCosts = curTime
 	}
 
-	if s.solverRunCnt%FLAGS_purge_unconnected_ec_frequency == 0 {
+	if s.solverRunCnt % s.purgeUnconnectedEcFrequency == 0 {
 		// periodically remove EC nodes without incoming arcs
 		s.graphManager.PurgeUnconnectedEquivClassNodes()
 	}
@@ -620,7 +638,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	numScheduled := s.applySchedulingDeltas(deltas)
 
 	// TODO: update_resource_topology_capacities??
-	if FLAGS_update_resource_topology_capacities {
+	if s.updateResourceTopologyCapacities {
 		for rtnd := range s.resourceRoots {
 			s.graphManager.UpdateResourceTopology(rtnd)
 		}

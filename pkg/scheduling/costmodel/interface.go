@@ -20,6 +20,7 @@ package costmodel
 import (
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
+	// "nickren/firmament-go/pkg/scheduling/flowmanager"
 	util "nickren/firmament-go/pkg/scheduling/utility"
 )
 
@@ -74,6 +75,7 @@ func NewArcDescriptor(cost int64, capacity, minFlow uint64) ArcDescriptor {
 // - Stats related for cost calculation.
 type CostModeler interface {
 
+	/*SetFlowGraphManager(manager flowmanager.GraphManager)*/
 	// Get the cost from a task node to its unscheduled aggregator node.
 	// The method should return a monotonically increasing value upon subsequent
 	// calls. It is used to adjust the cost of leaving a task unscheduled after
