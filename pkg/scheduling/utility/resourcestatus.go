@@ -1,6 +1,8 @@
 package utility
 
 import (
+	"strconv"
+
 	pb "nickren/firmament-go/pkg/proto"
 )
 
@@ -14,8 +16,9 @@ type ResourceStatus struct {
 func CreateTopLevelResourceStatus() *ResourceStatus {
 	resID := GenerateResourceID()
 
+	idString := strconv.FormatUint(uint64(resID), 10)
 	rd := &pb.ResourceDescriptor{
-		Uuid: string(resID),
+		Uuid: idString,
 		// TaskCapacity: uint64(0),
 		Type: pb.ResourceDescriptor_RESOURCE_COORDINATOR,
 		// Default state and type
