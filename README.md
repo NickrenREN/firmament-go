@@ -1,5 +1,5 @@
 # firmament-go
-kubernetes, scheduling, batching scheduling, network flow
+kubernetes, scheduling, batch-scheduling, network-flow scheduling
 
 TODOs:
 1. integrate solver code into flow scheduler;
