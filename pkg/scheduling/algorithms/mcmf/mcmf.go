@@ -11,11 +11,11 @@ func SuccessiveShortestPathWithDEP(graph *flowgraph.Graph, src, dst flowgraph.No
 	var minCost int64
 
 	distance, parent := DEsopoPape(graph, src, dst)
-	for distance != math.MaxInt64 {
+	for distance[dst] != math.MaxInt64 {
 		minFlow := retrieveMinflow(graph, parent, dst)
 
 		maxFlow += minFlow
-		minCost += distance * int64(minFlow)
+		minCost += distance[dst] * int64(minFlow)
 		child := dst
 		for father := parent[child]; father != 0; father = parent[child] {
 			arc := graph.GetArcByIds(father, child)
@@ -53,7 +53,7 @@ func retrieveMinflowAndPathCost(graph *flowgraph.Graph, parent []flowgraph.NodeI
 	return minFlow, pathCost
 }
 
-func SuccessiveShortesPathWithDijkstra(graph *flowgraph.Graph, src, dst flowgraph.NodeID) (uint64, int64) {
+func SuccessiveShortestPathWithDijkstra(graph *flowgraph.Graph, src, dst flowgraph.NodeID) (uint64, int64) {
 	var maxFlow uint64
 	var minCost int64
 	var visitCount uint32 = 1

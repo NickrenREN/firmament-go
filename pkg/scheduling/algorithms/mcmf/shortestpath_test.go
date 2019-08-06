@@ -65,7 +65,7 @@ func TestDEsopoPape(t *testing.T) {
 	graph := generateGraphWithCost()
 	distance, parent := DEsopoPape(graph, 1, 7)
 
-	if distance != 5 || parent[7] != 5 {
+	if distance[7] != 5 || parent[7] != 5 {
 		t.Errorf("something is wrong")
 	}
 }

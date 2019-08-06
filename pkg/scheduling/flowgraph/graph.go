@@ -54,6 +54,47 @@ type Graph struct {
 	RandomizeNodeIDs bool
 }
 
+func CopyGraph(graph *Graph) *Graph {
+	fg := &Graph{
+		ArcSet:  make(map[*Arc]struct{}),
+		NodeMap: make(map[NodeID]*Node),
+		TaskSet: make(map[*Node]struct{}),
+		ResourceSet: make(map[*Node]struct{}),
+	}
+	fg.SinkID = graph.SinkID
+	fg.SourceID = graph.SourceID
+	fg.NextID = graph.NextID
+
+	for id, val := range graph.NodeMap {
+		node := &Node{
+			ID:             id,
+			IncomingArcMap: make(map[NodeID]*Arc),
+			OutgoingArcMap: make(map[NodeID]*Arc),
+			Visited: val.Visited,
+			Type: val.Type,
+			Excess: val.Excess,
+			Potential: val.Potential,
+		}
+		fg.NodeMap[id] = node
+	}
+
+	for node, val := range graph.TaskSet {
+		fg.TaskSet[fg.NodeMap[node.ID]] = val
+	}
+
+	for node, val := range graph.ResourceSet {
+		fg.ResourceSet[fg.NodeMap[node.ID]] = val
+	}
+
+	for arc, val := range graph.ArcSet {
+		copyArc := fg.AddArcWithCapAndCost(arc.Src, arc.Dst, arc.CapUpperBound, arc.Cost)
+		fg.ArcSet[copyArc] = val
+
+	}
+
+	return fg
+}
+
 // Constructor equivalent in Go
 // Must specify RandomizeNodeIDs flag
 func NewGraph(randomizeNodeIDs bool) *Graph {

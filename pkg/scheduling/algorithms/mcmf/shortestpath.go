@@ -15,7 +15,7 @@ import (
  // D-Esopo-Pape algorithm can tolerate the negative cost edge.
  // Despite it cannot tolerate negative cost cycle, in the successive shortest path algorithms
  // we will not have negative cost cycle
- func DEsopoPape(graph *flowgraph.Graph, src, dst flowgraph.NodeID) (int64, []flowgraph.NodeID) {
+ func DEsopoPape(graph *flowgraph.Graph, src, dst flowgraph.NodeID) ([]int64, []flowgraph.NodeID) {
 	distance := make([]int64, len(graph.NodeMap) + 1)
 	parent := make([]flowgraph.NodeID, len(graph.NodeMap) + 1)
 	m := make([]int, len(graph.NodeMap) + 1)
@@ -46,7 +46,7 @@ import (
 		}
 	}
 
-	return distance[dst], parent
+	return distance, parent
  }
 
  func Dijkstra(graph *flowgraph.Graph, src, dst flowgraph.NodeID, visiteCount uint32) ([]int64, []flowgraph.NodeID) {
