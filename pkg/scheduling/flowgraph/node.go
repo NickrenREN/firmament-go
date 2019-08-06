@@ -24,6 +24,7 @@ import (
 //Enum for flow node type
 type NodeType int
 
+//TODO need to add virtual machine type which is also a type of resource node
 const (
 	NodeTypeRootTask NodeType = iota
 	NodeTypeScheduledTask
@@ -77,7 +78,10 @@ type Node struct {
 	ID NodeID
 	// The supply of excess flow at this node. 0 for non-source/sink nodes
 	Excess int64
-	Type   NodeType
+	// The potential of node, will be used in some MCMF algorithms
+	Potential int64
+
+	Type NodeType
 	// Comment for debugging purposes (used to label special nodes)
 	Comment string
 
@@ -100,8 +104,11 @@ type Node struct {
 	OutgoingArcMap map[NodeID]*Arc
 	// Incoming arcs to this node, keyed by source node
 	IncomingArcMap map[NodeID]*Arc
+
 	// Field use to mark if the node has been visited in a graph traversal.
-	// TODO: Why is this a uint32 in the original code
+	// Field is a int instead of bool because before every graph traversal, we will incre
+	// the previous Graph traversal count, and any node with a lesser visited count will be
+	// treated as unvisited
 	Visited uint32
 }
 
@@ -128,6 +135,12 @@ func (n *Node) AddArc(arc *Arc) {
 	if !insertIfNotPresent(arc.DstNode.IncomingArcMap, arc.Src, arc) {
 		log.Fatalf("AddArc Error: arc:%v already present in node:%v incomingArcMap\n", arc, arc.DstNode.ID)
 	}
+}
+
+func (n *Node) GetResidualy(sinkId NodeID) uint64 {
+	return n.OutgoingArcMap[sinkId].CapUpperBound
+	/*capacity := residual + n.IncomingArcMap[sinkId].CapUpperBound
+	return residual, capacity*/
 }
 
 func (n *Node) IsEquivalenceClassNode() bool {
