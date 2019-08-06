@@ -15,6 +15,7 @@
 package flowmanager
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -33,8 +34,9 @@ type graphManager struct {
 	// True if the preferences of a running task should be updated before each scheduling round
 	UpdatePreferencesRunningTask bool
 	Preemption                   bool
-	MaxTasksPerPu                uint64
-	flowSchedulingSolver         string
+	// TODO: refactor, do not need pu
+	MaxTasksPerPu        uint64
+	flowSchedulingSolver string
 
 	cm          GraphChangeManager
 	sinkNode    *flowgraph.Node
@@ -202,6 +204,7 @@ func (gm *graphManager) AddResourceTopology(rtnd *pb.ResourceTopologyNodeDescrip
 
 func (gm *graphManager) NodeBindingToSchedulingDelta(tid, rid flowgraph.NodeID, tb map[utility.TaskID]utility.ResourceID) *pb.SchedulingDelta {
 	taskNode := gm.cm.Graph().Node(tid)
+	fmt.Printf("debugging taskNode %v, taskid %d", taskNode, tid)
 	if !taskNode.IsTaskNode() {
 		log.Panicf("unexpected non-task node %d\n", tid)
 	}
@@ -548,9 +551,10 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 
 	// Not doing any nil checks. Will just panic
 	rd := rtnd.ResourceDesc
+	fmt.Printf("test: %s\n", rd.Uuid)
 	rID := utility.MustResourceIDFromString(rd.Uuid)
 	resourceNode := gm.nodeForResourceID(rID)
-
+	//fmt.Printf("uuid %v \n", rtnd)
 	addedNewResNode := false
 	if resourceNode == nil {
 		addedNewResNode = true
@@ -558,6 +562,7 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 		if resourceNode.Type == flowgraph.NodeTypePu {
 			gm.updateResToSinkArc(resourceNode)
 			if rd.NumSlotsBelow == 0 {
+				// TODO: not max tasks per pu
 				rd.NumSlotsBelow = uint64(gm.MaxTasksPerPu)
 				if rd.NumRunningTasksBelow == 0 {
 					rd.NumRunningTasksBelow = uint64(len(rd.CurrentRunningTasks))
@@ -586,7 +591,6 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 	}
 
 	gm.visitTopologyChildren(rtnd)
-	// If we reach the root
 	if rtnd.ParentId == "" {
 		if rd.Type != pb.ResourceDescriptor_RESOURCE_COORDINATOR {
 			log.Panicf("A resource node that is not a coordinator must have a parent")

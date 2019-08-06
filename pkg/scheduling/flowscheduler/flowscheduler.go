@@ -23,11 +23,10 @@ type scheduler struct {
 	enableEviction  bool
 	enableMigration bool
 
-	rescheduleTasksOnNodeFailure bool
+	rescheduleTasksOnNodeFailure     bool
 	updateResourceTopologyCapacities bool
 	timeDependentCostUpdateFrequency uint64
-	purgeUnconnectedEcFrequency uint64
-
+	purgeUnconnectedEcFrequency      uint64
 
 	jobMap      *utility.JobMap
 	taskMap     *utility.TaskMap
@@ -71,7 +70,8 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 	// Initialize graph manager with cost model
 	leafResourceIDs := make(map[utility.ResourceID]struct{})
 
-	costModel := costmodel.NewCostModel(resourceMap, taskMap, leafResourceIDs)
+	// TODO: refactor maxTasksPerMachine
+	costModel := costmodel.NewCostModel(resourceMap, taskMap, leafResourceIDs, 100)
 
 	s := &scheduler{
 		updateResourceTopologyCapacities: true,
@@ -108,6 +108,12 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 
 	// Set up the solver, which starts the flow solver
 	s.solver = ss.NewSolver(s.graphManager)
+
+	// TODO: init flag by cmd
+	s.rescheduleTasksOnNodeFailure = false
+	s.updateResourceTopologyCapacities = false
+	s.timeDependentCostUpdateFrequency = 60
+	s.purgeUnconnectedEcFrequency = 60
 
 	return s
 }
@@ -592,7 +598,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 		s.lastUpdateTimeDepentCosts = curTime
 	}
 
-	if s.solverRunCnt % s.purgeUnconnectedEcFrequency == 0 {
+	if s.solverRunCnt%s.purgeUnconnectedEcFrequency == 0 {
 		// periodically remove EC nodes without incoming arcs
 		s.graphManager.PurgeUnconnectedEquivClassNodes()
 	}
@@ -601,7 +607,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	s.tasksCompletedDuringSloverRun = make(map[uint64]struct{})
 
 	// Run the flow solver! This is where all the juicy goodness happens :)
-	taskMappings := s.solver.Solve()
+	taskMappings := s.solver.MockSolve()
 	s.solverRunCnt++
 	// firmament will populate max solve runtime and scheduler time stats
 	// and play all the simulation events that happened while the solver was running
