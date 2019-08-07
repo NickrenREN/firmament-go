@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowscheduler"
 	"nickren/firmament-go/pkg/scheduling/utility"
@@ -43,6 +42,9 @@ func NewSchedulerServer() proto.FirmamentSchedulerServer {
 
 	ss.scheduler = flowscheduler.NewScheduler(ss.jobMap, ss.resourceMap, rs.TopologyNode, ss.taskMap)
 
+	// init map
+	ss.jobTasksNumToRemoveMap = make(map[utility.JobID]uint64)
+	ss.jobIncompleteTasksNumMap = make(map[utility.JobID]uint64)
 	return ss
 }
 
@@ -310,13 +312,13 @@ func (ss *schedulerServer) NodeAdded(context context.Context, rtnd *proto.Resour
 		return response, nil
 	}
 
-	rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
-	if rootRs == nil {
-		return nil, fmt.Errorf("root resource status is nil")
-	}
+	// rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
+	// if rootRs == nil {
+	//	return nil, fmt.Errorf("root resource status is nil")
+	//}
 
-	rootRs.TopologyNode.Children = append(rootRs.TopologyNode.Children, rtnd)
-	rtnd.ParentId = string(ss.topLevelResID)
+	// rootRs.TopologyNode.Children = append(rootRs.TopologyNode.Children, rtnd)
+	//rtnd.ParentId = strconv.FormatUint(uint64(ss.topLevelResID), 10)
 
 	ss.DFSTraverseResourceProtobufTreeReturnRTND(rtnd)
 
@@ -364,7 +366,7 @@ func (ss *schedulerServer) UpdateNodeLabels(oldRtnd, newRtnd *proto.ResourceTopo
 	oldRD.Labels = make([]*proto.Label, len(newRD.Labels))
 	for _, label := range newRD.Labels {
 		labelCopy := &proto.Label{
-			Key: label.Key,
+			Key:   label.Key,
 			Value: label.Value,
 			// TODO: copy other fields
 		}
@@ -434,4 +436,18 @@ func (ss *schedulerServer) AddNodeStats(context context.Context, resStats *proto
 	// TODO: add more states for the stats operations
 	response.Type = proto.NodeReplyType_NODE_ADDED_OK
 	return response, nil
+}
+
+// Get member variable
+
+func (ss *schedulerServer) GetScheduler() flowscheduler.Scheduler {
+	return ss.scheduler
+}
+
+func (ss *schedulerServer) GetJobAndTaskMap() (*utility.JobMap, *utility.TaskMap) {
+	return ss.jobMap, ss.taskMap
+}
+
+func (ss *schedulerServer) GetResourceMap() *utility.ResourceMap {
+	return ss.resourceMap
 }

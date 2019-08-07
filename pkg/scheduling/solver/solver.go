@@ -35,6 +35,7 @@ var (
 
 type Solver interface {
 	Solve() flowmanager.TaskMapping
+	MockSolve() flowmanager.TaskMapping
 }
 
 type flowlesslySolver struct {
@@ -57,6 +58,16 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 // NOTE: assume we don't have debug flag
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
+func (fs *flowlesslySolver) MockSolve() flowmanager.TaskMapping {
+	outputFile, _ := os.OpenFile("dimacs", os.O_WRONLY|os.O_CREATE, 0666)
+	defer outputFile.Close()
+	fs.toSolver = outputFile
+	fs.writeGraph()
+	tm := make(map[flowgraph.NodeID]flowgraph.NodeID)
+	//tm[6] = 2
+	return tm
+}
+
 func (fs *flowlesslySolver) Solve() flowmanager.TaskMapping {
 	// Note: combine all the first time logic into this once function.
 	// This is different from original cpp code.
