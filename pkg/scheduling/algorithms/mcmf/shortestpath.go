@@ -1,7 +1,6 @@
 package mcmf
 
 import (
-	"container/heap"
 	"math"
 	"nickren/firmament-go/pkg/scheduling/algorithms/datastructure"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
@@ -52,17 +51,21 @@ import (
  func Dijkstra(graph *flowgraph.Graph, src, dst flowgraph.NodeID, visiteCount uint32) ([]int64, []flowgraph.NodeID) {
 	 distance := make([]int64, len(graph.NodeMap) + 1)
 	 parent := make([]flowgraph.NodeID, len(graph.NodeMap) + 1)
-	 pq := make(datastructure.BinaryMinHeap, 0)
+	 //pq := make(datastructure.BinaryMinHeap, 0)
+	 fh := datastructure.NewFibHeap()
 	 for i := 1; i < len(parent); i++ {
 		 distance[i] = math.MaxInt64
 		 parent[i] = 0
 	 }
-	 heap.Init(&pq)
-	 heap.Push(&pq, &datastructure.Distance{src, 0})
+	 //heap.Init(&pq)
+	 //heap.Push(&pq, &datastructure.Distance{src, 0})
+	 fh.Insert(int64(0), &datastructure.Distance{src, 0})
 	 distance[int(src)] = 0
 
-	 for pq.Len() > 0 {
-	 	current := heap.Pop(&pq).(*datastructure.Distance)
+	 //for pq.Len() > 0 {
+	 for fh.Len() > 0 {
+	 	//current := heap.Pop(&pq).(*datastructure.Distance)
+	 	current := fh.ExtractMin().Value.(*datastructure.Distance)
 	 	currentNode := graph.Node(current.NodeId)
 	 	currentNode.Visited = visiteCount
 
@@ -78,7 +81,8 @@ import (
 	 			if updatedCost < distance[int(nextId)] {
 					distance[int(nextId)] = updatedCost
 					parent[int(nextId)] = current.NodeId
-					heap.Push(&pq, &datastructure.Distance{nextId, updatedCost})
+					//heap.Push(&pq, &datastructure.Distance{nextId, updatedCost})
+					fh.Insert(updatedCost, &datastructure.Distance{nextId, updatedCost})
 				}
 			}
 		}

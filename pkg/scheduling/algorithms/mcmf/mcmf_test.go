@@ -2,7 +2,6 @@ package mcmf
 
 import (
 	"fmt"
-	"math/rand"
 	"nickren/firmament-go/pkg/scheduling/algorithms/utils"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
 	"testing"
@@ -17,13 +16,17 @@ func generateRandomGraph(taskNum, machineNum, request, machineCap int) *flowgrap
 	graph.SinkID = flowgraph.NodeID(taskNum + machineNum + 2)
 	for i := 2; i <= 1 + taskNum; i++ {
 		graph.AddArcWithCapAndCost(1, flowgraph.NodeID(i), uint64(request), 0)
+		graph.Node(flowgraph.NodeID(i)).Excess = int64(request)
+		graph.Node(flowgraph.NodeID(i)).Type = flowgraph.NodeTypeUnscheduledTask
+		graph.TaskSet[graph.Node(flowgraph.NodeID(i))] = struct{}{}
 	}
 	for i := 2 + taskNum; i < taskNum + machineNum + 2; i++ {
 		graph.AddArcWithCapAndCost(flowgraph.NodeID(i), flowgraph.NodeID(taskNum + machineNum + 2), uint64(machineCap), 0)
+		graph.Node(flowgraph.NodeID(i)).Type = flowgraph.NodeTypeMachine
 	}
 	for i := 2; i <= 1 + taskNum; i++ {
 		for j := 2 + taskNum; j < taskNum + machineNum + 2; j++ {
-			graph.AddArcWithCapAndCost(flowgraph.NodeID(i), flowgraph.NodeID(j), uint64(request), int64(rand.Intn(100)) + 5)
+			graph.AddArcWithCapAndCost(flowgraph.NodeID(i), flowgraph.NodeID(j), uint64(request), 5)
 		}
 	}
 
@@ -52,10 +55,12 @@ func genetaeRandomOptimizedGraph(taskNum, machineNum, request, machineCap int) *
 
 	}
 
+	var cost int64 = 1
 	for i := 2 + taskNum; i <= 1 + taskNum + intermediate; i++ {
 		for j := 2 + taskNum + intermediate; j < taskNum + machineNum + intermediate + 2; j++ {
 			graph.AddArcWithCapAndCost(flowgraph.NodeID(i), flowgraph.NodeID(j), uint64(graph.Node(flowgraph.NodeID(i)).Excess),
-				int64(rand.Intn(100)) + 1)
+				5)
+			cost++
 		}
 	}
 
@@ -101,6 +106,12 @@ func generateGraphWithCostAndCapacity() *flowgraph.Graph {
 	return graph
 }
 
+func TestBenchSuccessiveShortestPathWithDijkstra(b *testing.T) {
+	graph := generateRandomGraph(1000, 10000, 5, 100)
+	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 11002)
+	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
+}
+
 func TestSuccessiveShortestPathWithDEP(t *testing.T) {
 	graph := generateGraphWithCostAndCapacity()
 	maxFlow, minCost := SuccessiveShortestPathWithDEP(graph, 1, 7)
@@ -132,11 +143,44 @@ func TestSuccessiveShortesPathWithDijkstra(t *testing.T) {
 			}
 		}
 	}
-	graph = generateRandomGraph(1000, 10000, 5, 100)
+	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+		} else {
+			if mapping.ResourceId == 0 {
+				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+			}
+		}
+	}
+	graph = generateRandomGraph(100, 10000, 5, 100)
 	g1 := flowgraph.CopyGraph(graph)
-	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(graph, 1, 1102)
+	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(graph, 1, 10102)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
-	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g1, 1, 1102)
+	scheduleResult = utils.ExtractScheduleResult(graph, 1)
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+		} else {
+			if mapping.ResourceId == 0 {
+				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+			}
+		}
+	}
+
+	fmt.Println("After the repair")
+	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 10102)
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+		} else {
+			if mapping.ResourceId == 0 {
+				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+			}
+		}
+	}
+
+	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g1, 1, 10102)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 
@@ -155,12 +199,12 @@ func TestOptimizedRandomGraph(t *testing.T) {
 }
 
 func TestOptimizedRandomGraphWithDijkstra(t *testing.T) {
-	graph := genetaeRandomOptimizedGraph(10000, 5000, 5, 10)
-	g1 := flowgraph.CopyGraph(graph)
-	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 15002)
+	graph := genetaeRandomOptimizedGraph(100000, 10000, 5, 100)
+	//g1 := flowgraph.CopyGraph(graph)
+	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 110002)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 
-	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g1, 1, 15002)
-	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
+	//maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g1, 1, 20002)
+	//fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 
