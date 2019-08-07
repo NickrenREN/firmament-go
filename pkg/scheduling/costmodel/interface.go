@@ -78,9 +78,12 @@ type MachineResourceSlots struct {
 // TODO: add test
 // GetRequestSlots calculate requested slots according ResourceVector
 func NewRequestSlots(request *pb.ResourceVector) RequestSlots {
+	// TODO: machine need ceil, but task need floor
 	requestCPUNum := math.Ceil(float64(request.GetCpuCores()))
-	r := float64(request.GetRamCap()) / requestCPUNum
-	return RequestSlots(math.Ceil(r))
+	r := float64(request.GetRamCap()) / 4
+	r = r / float64(1024)
+	slots := math.Min(r, requestCPUNum)
+	return RequestSlots(math.Ceil(slots))
 }
 
 func NewMachineResourceSlots(capacitySlots, availableSlots RequestSlots) MachineResourceSlots {

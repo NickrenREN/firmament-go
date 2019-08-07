@@ -7,7 +7,6 @@ import (
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowscheduler"
 	"nickren/firmament-go/pkg/scheduling/utility"
-	"strconv"
 )
 
 var _ proto.FirmamentSchedulerServer = &schedulerServer{}
@@ -313,13 +312,13 @@ func (ss *schedulerServer) NodeAdded(context context.Context, rtnd *proto.Resour
 		return response, nil
 	}
 
-	rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
-	if rootRs == nil {
-		return nil, fmt.Errorf("root resource status is nil")
-	}
+	// rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
+	// if rootRs == nil {
+	//	return nil, fmt.Errorf("root resource status is nil")
+	//}
 
-	rootRs.TopologyNode.Children = append(rootRs.TopologyNode.Children, rtnd)
-	rtnd.ParentId = strconv.FormatUint(uint64(ss.topLevelResID), 10)
+	// rootRs.TopologyNode.Children = append(rootRs.TopologyNode.Children, rtnd)
+	//rtnd.ParentId = strconv.FormatUint(uint64(ss.topLevelResID), 10)
 
 	ss.DFSTraverseResourceProtobufTreeReturnRTND(rtnd)
 

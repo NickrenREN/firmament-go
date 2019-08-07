@@ -1,6 +1,7 @@
 package costmodel
 
 import (
+	"fmt"
 	"log"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
@@ -25,6 +26,8 @@ type directMappingCostModel struct {
 
 const (
 	Unschedule_Factor uint64 = 10
+	baseDelta         int64  = 10001
+	maxCapacity       int64  = 100
 )
 
 // NewDirectMapping return a new direct-mapping cost model
@@ -51,11 +54,12 @@ func (dmc *directMappingCostModel) TaskToUnscheduledAgg(taskID util.TaskID) ArcD
 	}
 	// TODO: check unscheduled time is valid
 	waitTime := taskDescriptor.TotalUnscheduledTime
-	capacity := NewRequestSlots(taskDescriptor.GetResourceRequest())
-	return NewArcDescriptor(int64(waitTime*Unschedule_Factor), uint64(capacity), 0)
+	capacity := dmc.getSlotsByTaskID(taskID)
+	return NewArcDescriptor(int64(waitTime*Unschedule_Factor)+baseDelta, uint64(capacity), 0)
 }
 
 func (dmc *directMappingCostModel) UnscheduledAggToSink(id util.JobID) ArcDescriptor {
+	fmt.Printf("debug unschedule : %v; %v; capacity %d\n", id, dmc.jobToRequestSlots, dmc.jobToRequestSlots[id])
 	capacity := dmc.jobToRequestSlots[id]
 	return NewArcDescriptor(0, uint64(capacity), 0)
 }
@@ -71,11 +75,13 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 	x := dmc.getBalancedSlots()
 	var factor int64 = 1
 	expectCapacity := float64(capacity) * x
-	if float64(requestSlots) > (expectCapacity - float64(usage)) {
+	if float64(requestSlots) > (float64(capacity) - float64(usage)) {
 		// TODO: factor
 		factor *= 2
 	}
-	cost := float64(capacity*capacity) / ((expectCapacity - float64(usage)) * float64(requestSlots))
+	cost := float64(maxCapacity*maxCapacity) / ((expectCapacity - float64(usage)) * float64(requestSlots))
+	log.Printf("resourceID %d 's capacity is %d, expectCapacity is %d, usage is %d, requestSlots is %d "+
+		"and cost is %d\n", resourceID, capacity, expectCapacity, usage, requestSlots, cost)
 	return NewArcDescriptor(int64(cost)*factor, uint64(requestSlots), 0)
 }
 
@@ -85,14 +91,8 @@ func (dmc *directMappingCostModel) ResourceNodeToResourceNode(source, destinatio
 }
 
 func (dmc *directMappingCostModel) LeafResourceNodeToSink(resourceID util.ResourceID) ArcDescriptor {
-	// TODO: get c, u
-	//if rtndPtr, ok := dmc.machineToResTopo[resourceID]; ok {
-	//	availableSlots := NewRequestSlots(rtndPtr.GetResourceDesc().GetAvailableResources())
-	//	return NewArcDescriptor(0, uint64(availableSlots), 0)
-	//} else {
-	//	log.Panicln("fail find rtnodPtr")
-	//}
-	return NewArcDescriptor(0, 16, 0)
+	capacity := dmc.getSlotsByMachineID(resourceID)
+	return NewArcDescriptor(0, uint64(capacity.CapacitySlots), 0)
 }
 
 func (dmc *directMappingCostModel) TaskContinuation(util.TaskID) ArcDescriptor {
@@ -128,7 +128,14 @@ func (dmc *directMappingCostModel) GetOutgoingEquivClassPrefArcs(ec util.EquivCl
 }
 
 func (dmc *directMappingCostModel) GetTaskPreferenceArcs(util.TaskID) []util.ResourceID {
-	return nil
+	// TODO: get machine list directly
+	resourceIDs := make([]util.ResourceID, 0)
+	for resourceID, rtnd := range dmc.machineToResTopo {
+		if rtnd.ResourceDesc.Type == pb.ResourceDescriptor_RESOURCE_MACHINE {
+			resourceIDs = append(resourceIDs, resourceID)
+		}
+	}
+	return resourceIDs
 }
 
 func (dmc *directMappingCostModel) GetEquivClassToEquivClassesArcs(util.EquivClass) []util.EquivClass {
@@ -224,7 +231,9 @@ func (dmc *directMappingCostModel) DebugInfoCSV() string {
 
 func (dmc *directMappingCostModel) getBalancedSlots() float64 {
 	usage := dmc.sumMachineCapacitySlots - dmc.sumMachineAvailableSlots
-	return float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
+	balancedSlots := float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
+	log.Printf("balacned slots number : %d", balancedSlots)
+	return balancedSlots
 }
 
 func (dmc *directMappingCostModel) getSlotsByTaskID(id util.TaskID) RequestSlots {

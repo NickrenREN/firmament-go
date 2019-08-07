@@ -101,7 +101,7 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 	// TODO: refactor max tasks per PU
 	s.graphManager = flowmanager.NewGraphManager(s.costModel, s.leafResourceIDs, s.dimacsStats, 100)
 	// Set up the initial flow graph
-	s.graphManager.AddResourceTopology(root)
+	//s.graphManager.AddResourceTopology(root)
 
 	// set cost model graph manager
 	//s.costModel.SetFlowGraphManager(s.graphManager)

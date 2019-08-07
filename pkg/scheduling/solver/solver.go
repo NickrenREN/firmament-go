@@ -64,7 +64,7 @@ func (fs *flowlesslySolver) MockSolve() flowmanager.TaskMapping {
 	fs.toSolver = outputFile
 	fs.writeGraph()
 	tm := make(map[flowgraph.NodeID]flowgraph.NodeID)
-	tm[6] = 4
+	//tm[6] = 2
 	return tm
 }
 
