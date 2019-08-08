@@ -1,3 +1,5 @@
+from collections import Counter
+
 import plotly.graph_objects as go
 
 
@@ -21,7 +23,7 @@ def read_file():
             n = file.readline()
             cc = c.split(" ")
             nn = n.split(" ")
-            name = cc[2]
+            name = str(cc[2])
             idx = int(nn[1])
             label[idx - 1] = name
         x = file.readline()
@@ -50,13 +52,22 @@ def read_file():
         print(target)
         file.close()
 
+    colors = ["blue"] * len(label)
+    ct = Counter(source)
+    for idx, name in enumerate(label):
+        if not str(name).startswith("Task"):
+            continue
+        else:
+            if ct[idx] == 1:
+                colors[idx] = "red"
+
     fig = go.Figure(data=[go.Sankey(
         node=dict(
             pad=15,
             thickness=20,
             line=dict(color="black", width=0.5),
             label=label,
-            color="blue"
+            color=colors
         ),
         link=dict(
             source=source,

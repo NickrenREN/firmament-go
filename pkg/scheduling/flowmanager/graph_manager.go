@@ -209,8 +209,14 @@ func (gm *graphManager) NodeBindingToSchedulingDelta(tid, rid flowgraph.NodeID, 
 	}
 	// Destination must be a PU node
 	resNode := gm.cm.Graph().Node(rid)
-	if resNode.Type != flowgraph.NodeTypeMachine {
-		log.Panicf("unexpected non-pu node %d\n", rid)
+	deltaType := pb.SchedulingDelta_NOOP
+	if resNode.Type == flowgraph.NodeTypeMachine {
+		deltaType = pb.SchedulingDelta_PLACE
+	} else if resNode.Type == flowgraph.NodeTypeJobAggregator {
+		deltaType = pb.SchedulingDelta_NOOP
+		return nil
+	} else {
+		log.Panicf("unexpected non-machine node and non- %d\n", rid)
 	}
 
 	task := taskNode.Task
@@ -228,7 +234,7 @@ func (gm *graphManager) NodeBindingToSchedulingDelta(tid, rid flowgraph.NodeID, 
 		// Place the task.
 		////log.Printf("flowmanager: place %v on %v", task.Uid, res.Uuid)
 		sd := &pb.SchedulingDelta{
-			Type:       pb.SchedulingDelta_PLACE,
+			Type:       deltaType,
 			TaskId:     task.Uid,
 			ResourceId: res.Uuid,
 		}
