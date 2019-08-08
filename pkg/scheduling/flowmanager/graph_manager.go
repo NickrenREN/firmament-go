@@ -692,7 +692,7 @@ func (gm *graphManager) pinTaskToNode(taskNode, resourceNode *flowgraph.Node) {
 		arcDescriptor := gm.costModeler.TaskContinuation(utility.TaskID(taskNode.Task.Uid))
 		//newCost := int64(gm.costModeler.TaskContinuationCost(utility.TaskID(taskNode.Task.Uid)))
 		arc.Type = flowgraph.ArcTypeRunning
-		gm.cm.ChangeArc(arc, lowBoundCapacity, 1, arcDescriptor.Cost, dimacs.ChgArcRunningTask, "PinTaskToNode: transform to running arc")
+		gm.cm.ChangeArc(arc, lowBoundCapacity, arcDescriptor.Capacity, arcDescriptor.Cost, dimacs.ChgArcRunningTask, "PinTaskToNode: transform to running arc")
 
 		// Insert mapping for Task to RunningArc, must not already exist
 		_, ok := gm.taskToRunningArc[utility.TaskID(taskNode.Task.Uid)]
@@ -708,7 +708,7 @@ func (gm *graphManager) pinTaskToNode(taskNode, resourceNode *flowgraph.Node) {
 		// Add a single arc from the task to the resource node
 		arcDescriptor := gm.costModeler.TaskContinuation(utility.TaskID(taskNode.Task.Uid))
 		// newCost := int64(gm.costModeler.TaskContinuationCost(utility.TaskID(taskNode.Task.Uid)))
-		newArc := gm.cm.AddArc(taskNode, resourceNode, lowBoundCapacity, 1, arcDescriptor.Cost, flowgraph.ArcTypeRunning, dimacs.AddArcRunningTask, "PinTaskToNode: add running arc")
+		newArc := gm.cm.AddArc(taskNode, resourceNode, lowBoundCapacity, arcDescriptor.Capacity, arcDescriptor.Cost, flowgraph.ArcTypeRunning, dimacs.AddArcRunningTask, "PinTaskToNode: add running arc")
 
 		// Insert mapping for Task to RunningArc, must not already exist
 		_, ok := gm.taskToRunningArc[utility.TaskID(taskNode.Task.Uid)]

@@ -17,7 +17,7 @@ var _ = Describe("Firmametservice", func() {
 	var addMachine = func(id int64, core int) {
 		uid := strconv.FormatInt(id, 10)
 		puUid := strconv.FormatInt(id+1000, 10)
-		rtnd := createMockRTND(uid, puUid, 64)
+		rtnd := createMockRTND(uid, puUid, core)
 		response, err := ss.NodeAdded(context.Background(), rtnd)
 		Expect(err).Should(BeNil())
 		Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_ADDED_OK))
@@ -34,8 +34,8 @@ var _ = Describe("Firmametservice", func() {
 			It("example 1", func() {
 				addMachine(1, 16)
 				addMachine(2, 32)
-				addMachine(48, 1)
-				addMachine(64, 1)
+				addMachine(3, 48)
+				addMachine(4, 64)
 			})
 		})
 		PIt("example 2", func() {
@@ -88,7 +88,7 @@ var _ = Describe("Firmametservice", func() {
 					Expect(err).Should(BeNil())
 				})
 				Expect(runtime.Seconds()).Should(BeNumerically("<", 2), "runtime must be short")
-			}, 3)
+			}, 1)
 		})
 	})
 })

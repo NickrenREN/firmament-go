@@ -650,6 +650,8 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 		}
 	}
 
+	// write schedule graph
+	s.solver.WriteGraph()
 	return numScheduled, deltas
 }
 
