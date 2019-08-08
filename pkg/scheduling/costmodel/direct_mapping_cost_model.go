@@ -95,9 +95,9 @@ func (dmc *directMappingCostModel) LeafResourceNodeToSink(resourceID util.Resour
 	return NewArcDescriptor(0, uint64(capacity.CapacitySlots), 0)
 }
 
-func (dmc *directMappingCostModel) TaskContinuation(util.TaskID) ArcDescriptor {
-	// TODO
-	return NewArcDescriptor(0, 0, 0)
+func (dmc *directMappingCostModel) TaskContinuation(id util.TaskID) ArcDescriptor {
+	capacity := dmc.getSlotsByTaskID(id)
+	return NewArcDescriptor(0, uint64(capacity), 0)
 }
 
 func (dmc *directMappingCostModel) TaskPreemption(util.TaskID) ArcDescriptor {
