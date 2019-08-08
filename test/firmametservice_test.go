@@ -17,7 +17,7 @@ var _ = Describe("Firmametservice", func() {
 	var addMachine = func(id int64, core int) {
 		uid := strconv.FormatInt(id, 10)
 		puUid := strconv.FormatInt(id+1000, 10)
-		rtnd := createMockRTND(uid, puUid, 64)
+		rtnd := createMockRTND(uid, puUid, core)
 		response, err := ss.NodeAdded(context.Background(), rtnd)
 		Expect(err).Should(BeNil())
 		Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_ADDED_OK))
@@ -34,8 +34,8 @@ var _ = Describe("Firmametservice", func() {
 			It("example 1", func() {
 				addMachine(1, 16)
 				addMachine(2, 32)
-				addMachine(48, 1)
-				addMachine(64, 1)
+				addMachine(3, 48)
+				addMachine(4, 64)
 			})
 		})
 		PIt("example 2", func() {
@@ -46,7 +46,7 @@ var _ = Describe("Firmametservice", func() {
 	})
 	Describe("Add Taks using firmament service", func() {
 		Context("start test", func() {
-			It("example job 1", func() {
+			PIt("example job 1", func() {
 				By(" first job with 10slots and 10 tasks")
 				for id := 1; id <= 5; id++ {
 					addJobs(id, 10, 11)
@@ -60,7 +60,7 @@ var _ = Describe("Firmametservice", func() {
 					addJobs(id, 10, 22)
 				}
 			})
-			PIt("example job 2", func() {
+			It("example job 2", func() {
 				By(" first job with 10slots and 5 tasks")
 				for id := 1; id <= 5; id++ {
 					addJobs(id, 10, 11)
@@ -88,7 +88,7 @@ var _ = Describe("Firmametservice", func() {
 					Expect(err).Should(BeNil())
 				})
 				Expect(runtime.Seconds()).Should(BeNumerically("<", 2), "runtime must be short")
-			}, 3)
+			}, 1)
 		})
 	})
 })

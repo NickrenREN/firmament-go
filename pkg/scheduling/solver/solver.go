@@ -38,6 +38,7 @@ var (
 type Solver interface {
 	Solve() flowmanager.TaskMapping
 	MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping
+	WriteGraph()
 }
 
 type flowlesslySolver struct {
@@ -62,10 +63,6 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
 func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
-	outputFile, _ := os.OpenFile("dimacs", os.O_WRONLY|os.O_CREATE, 0666)
-	defer outputFile.Close()
-	fs.toSolver = outputFile
-	fs.writeGraph()
 	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
 	maxFlow, minCost := mcmf.SuccessiveShortestPathWithDijkstra(copyGraph, copyGraph.SourceID, copyGraph.SinkID)
 	fmt.Printf("maxFlow %v, minCost %v", maxFlow, minCost)
@@ -112,7 +109,7 @@ func (fs *flowlesslySolver) Solve() flowmanager.TaskMapping {
 		// (For example, if it outputs lots of warnings on STDERR.)
 
 		// go fs.writeGraph()
-		fs.writeGraph()
+		fs.WriteGraph()
 
 		// remove it.. once we run real sollver.
 		//os.Exit(1)
@@ -149,8 +146,11 @@ func (fs *flowlesslySolver) startSolver() {
 	}
 }
 
-func (fs *flowlesslySolver) writeGraph() {
+func (fs *flowlesslySolver) WriteGraph() {
 	// TODO: make sure proper locking on graph, manager
+	outputFile, _ := os.OpenFile("dimacs", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	defer outputFile.Close()
+	fs.toSolver = outputFile
 	dimacs.Export(fs.gm.GraphChangeManager().Graph(), fs.toSolver)
 	//dimacs.Export(fs.gm.GraphChangeManager().Graph(), fs.toConsole)
 	fs.gm.GraphChangeManager().ResetChanges()
