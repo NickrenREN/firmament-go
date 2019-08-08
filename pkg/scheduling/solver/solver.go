@@ -23,6 +23,7 @@ import (
 	"nickren/firmament-go/pkg/scheduling/algorithms/utils"
 	"os"
 	"os/exec"
+	"time"
 
 	"nickren/firmament-go/pkg/scheduling/dimacs"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
@@ -38,7 +39,7 @@ var (
 type Solver interface {
 	Solve() flowmanager.TaskMapping
 	MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping
-	WriteGraph()
+	WriteGraph(file string)
 }
 
 type flowlesslySolver struct {
@@ -63,13 +64,23 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
 func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
+	go fs.WriteGraph("mcmf_before")
+	start := time.Now()
 	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
+	elapsed := time.Since(start)
+	fmt.Printf("copy graph took %s\n", elapsed)
+	start = time.Now()
 	maxFlow, minCost := mcmf.SuccessiveShortestPathWithDijkstra(copyGraph, copyGraph.SourceID, copyGraph.SinkID)
-	fmt.Printf("maxFlow %v, minCost %v", maxFlow, minCost)
+	elapsed = time.Since(start)
+	fmt.Printf("mcmf took %s\n", elapsed)
+	fmt.Printf("maxFlow %v, minCost %v\n", maxFlow, minCost)
 
 	tm := make(map[flowgraph.NodeID]flowgraph.NodeID)
+	start = time.Now()
 	scheduleResult := utils.ExtractScheduleResult(copyGraph, copyGraph.SourceID)
-	for mapping, flow := range scheduleResult {
+	elapsed = time.Since(start)
+	fmt.Printf("extract result took %s\n", elapsed)
+	/*for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
@@ -77,11 +88,13 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
 			}
 		}
-	}
-
-	scheduleResult = utils.GreedyRepairFlow(copyGraph, scheduleResult, copyGraph.SinkID)
-	fmt.Printf("After the greedy repair")
-	for mapping, flow := range scheduleResult {
+	}*/
+	start = time.Now()
+	scheduleResult, repairCount := utils.GreedyRepairFlow(copyGraph, scheduleResult, copyGraph.SinkID)
+	elapsed = time.Since(start)
+	fmt.Printf("greedy repair took %s\n", elapsed)
+	fmt.Printf("After the greedy repair, %v tasks got repaired\n", repairCount)
+	/*for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			tm[mapping.TaskId] = mapping.ResourceId
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
@@ -90,7 +103,7 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
 			}
 		}
-	}
+	}*/
 
 	return tm
 }
@@ -109,7 +122,7 @@ func (fs *flowlesslySolver) Solve() flowmanager.TaskMapping {
 		// (For example, if it outputs lots of warnings on STDERR.)
 
 		// go fs.writeGraph()
-		fs.WriteGraph()
+		fs.WriteGraph("")
 
 		// remove it.. once we run real sollver.
 		//os.Exit(1)
@@ -146,9 +159,9 @@ func (fs *flowlesslySolver) startSolver() {
 	}
 }
 
-func (fs *flowlesslySolver) WriteGraph() {
+func (fs *flowlesslySolver) WriteGraph(file string) {
 	// TODO: make sure proper locking on graph, manager
-	outputFile, _ := os.OpenFile("dimacs", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	outputFile, _ := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	defer outputFile.Close()
 	fs.toSolver = outputFile
 	dimacs.Export(fs.gm.GraphChangeManager().Graph(), fs.toSolver)

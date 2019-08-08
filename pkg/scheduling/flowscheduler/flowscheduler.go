@@ -1,6 +1,7 @@
 package flowscheduler
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 
 // Set of tasks
 type TaskSet map[utility.TaskID]struct{}
+var timestart time.Time
 
 type scheduler struct {
 	// TODO: find a way to set these boolean values
@@ -510,7 +512,7 @@ func (sche *scheduler) RegisterResource(rtnd *proto.ResourceTopologyNodeDescript
 }
 
 func (sche *scheduler) ScheduleAllJobs(stat *utility.SchedulerStats) (uint64, []proto.SchedulingDelta) {
-
+	timestart = time.Now()
 	jds := make([]*proto.JobDescriptor, 0)
 	for _, jobDesc := range sche.jobsToSchedule {
 		// If at least one task is runnable in the job, add it for scheduling
@@ -606,6 +608,8 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	s.pusRemovedDuringSolverRun = make(map[uint64]struct{})
 	s.tasksCompletedDuringSloverRun = make(map[uint64]struct{})
 
+	timeElapsed := time.Since(timestart)
+	fmt.Printf("construct graph took %v\n", timeElapsed)
 	// Run the flow solver! This is where all the juicy goodness happens :)
 	taskMappings := s.solver.MockSolve(s.graphManager.GraphChangeManager().Graph())
 	s.solverRunCnt++
@@ -631,7 +635,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 			continue
 		}
 
-		log.Println("bind task to resource")
+		//log.Println("bind task to resource")
 		delta := s.graphManager.NodeBindingToSchedulingDelta(taskID, resourceID, s.TaskBindings)
 		if delta != nil {
 			deltas = append(deltas, *delta)
@@ -651,7 +655,11 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	}
 
 	// write schedule graph
-	s.solver.WriteGraph()
+	start := time.Now()
+
+	go s.solver.WriteGraph("mcmf-after")
+	elapsed := time.Since(start)
+	fmt.Printf("write graph took %s\n", elapsed)
 	return numScheduled, deltas
 }
 

@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"github.com/golang/glog"
-	"github.com/labstack/gommon/log"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"nickren/firmament-go/pkg/firmamentservice"
@@ -31,26 +30,25 @@ var _ = Describe("Firmametservice", func() {
 	}
 	Describe("Add Machine using firmament service", func() {
 		Context("start test", func() {
-			It("example 1", func() {
+			PIt("example 1", func() {
 				addMachine(1, 16)
 				addMachine(2, 32)
 				addMachine(3, 48)
 				addMachine(4, 64)
 			})
-		})
-		PIt("example 2", func() {
-			for id := 1; id <= 500; id++ {
-				addMachine(int64(id), 16)
-			}
+			It("example 1", func() {
+				for i := 1; i <= 1000; i++ {
+					addMachine(int64(i), 10)
+				}
+			})
 		})
 	})
 	Describe("Add Taks using firmament service", func() {
 		Context("start test", func() {
-			PIt("example job 1", func() {
+			It("example job 1", func() {
 				By(" first job with 10slots and 10 tasks")
-				for id := 1; id <= 5; id++ {
-					addJobs(id, 10, 11)
-					addJobs(id, 10, 22)
+				for id := 1; id <= 1000; id++ {
+					addJobs(id, 5, 11)
 				}
 			})
 			PIt("example job 2", func() {
@@ -60,7 +58,7 @@ var _ = Describe("Firmametservice", func() {
 					addJobs(id, 10, 22)
 				}
 			})
-			It("example job 2", func() {
+			PIt("example job 2", func() {
 				By(" first job with 10slots and 5 tasks")
 				for id := 1; id <= 5; id++ {
 					addJobs(id, 10, 11)
@@ -71,7 +69,7 @@ var _ = Describe("Firmametservice", func() {
 				By(" first job with 10slots and 5 tasks")
 				for id := 1; id <= 6; id++ {
 					addJobs(id, 10, 11)
-					addJobs(id, 10, 22)
+					addJobs(id, 20, 22)
 				}
 			})
 		})
@@ -81,13 +79,14 @@ var _ = Describe("Firmametservice", func() {
 			Measure("measure schedule", func(b Benchmarker) {
 				runtime := b.Time("runtime", func() {
 					sq := &proto.ScheduleRequest{}
-					deltas, err := ss.Schedule(context.Background(), sq)
-					for _, delta := range deltas.Deltas {
+					//deltas, err := ss.Schedule(context.Background(), sq)
+					/*for _, delta := range deltas.Deltas {
 						log.Printf("task:", delta.TaskId, " is scheduled to node:", delta.ResourceId)
-					}
+					}*/
+					_, err := ss.Schedule(context.Background(), sq)
 					Expect(err).Should(BeNil())
 				})
-				Expect(runtime.Seconds()).Should(BeNumerically("<", 2), "runtime must be short")
+				Expect(runtime.Seconds()).Should(BeNumerically("<", 60), "runtime must be short")
 			}, 1)
 		})
 	})

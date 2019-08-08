@@ -15,9 +15,11 @@
 package flowgraph
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"nickren/firmament-go/pkg/scheduling/algorithms/datastructure"
+	"runtime"
 	"time"
 
 	"nickren/firmament-go/pkg/scheduling/utility/queue"
@@ -55,8 +57,24 @@ type Graph struct {
 	RandomizeNodeIDs bool
 }
 
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}
+
 func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
+	PrintMemUsage()
 	incrementalGraph := CopyGraph(graph, true)
+	PrintMemUsage()
 	src := incrementalGraph.AddNode()
 	for id, node := range incrementalGraph.NodeMap {
 		node.Visited = 0
@@ -91,6 +109,7 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 	fg.SourceID = graph.SourceID
 	fg.NextID = graph.NextID
 
+	s1 := time.Now()
 	for id, val := range graph.NodeMap {
 		node := &Node{
 			ID:             id,
@@ -103,6 +122,7 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		}
 		fg.NodeMap[id] = node
 	}
+	fmt.Printf("copy nodes took %v\n", time.Since(s1))
 
 	for node, val := range graph.TaskSet {
 		fg.TaskSet[fg.NodeMap[node.ID]] = val
@@ -112,11 +132,14 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		fg.ResourceSet[fg.NodeMap[node.ID]] = val
 	}
 
-	for arc, val := range graph.ArcSet {
-		copyArc := fg.AddArcWithCapAndCost(arc.Src, arc.Dst, arc.CapUpperBound, arc.Cost)
-		fg.ArcSet[copyArc] = val
+	s2 := time.Now()
+	for arc, _ := range graph.ArcSet {
+		fg.AddArcWithCapAndCost(arc.Src, arc.Dst, arc.CapUpperBound, arc.Cost)
+		//fg.ArcSet[copyArc] = val
+		arc.ReverseArc = nil
 
 	}
+	fmt.Printf("copy arcs took %v\n", time.Since(s2))
 	fg.UnusedIDs = queue.NewFIFO()
 
 	if modify {

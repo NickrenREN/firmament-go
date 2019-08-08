@@ -15,7 +15,6 @@
 package flowmanager
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -1375,7 +1374,7 @@ func (gm *graphManager) updateUnscheduledAggNode(unschedAggNode *flowgraph.Node,
 		log.Panicf("unschedAggNode is nil in updateUnscheduledAggNode function")
 	}
 	unschedAggSinkArc := gm.cm.Graph().GetArc(unschedAggNode, gm.sinkNode)
-	fmt.Printf("debug job id %v; %d", unschedAggNode, unschedAggNode.JobID)
+	//fmt.Printf("debug job id %v; %d", unschedAggNode, unschedAggNode.JobID)
 	arcDescriptor := gm.costModeler.UnscheduledAggToSink(unschedAggNode.JobID)
 	//TODO : debug
 	// newCost := int64(gm.costModeler.UnscheduledAggToSinkCost(unschedAggNode.JobID))

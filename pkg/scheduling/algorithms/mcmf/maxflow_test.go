@@ -198,7 +198,9 @@ func TestEdmondsKarpWithConstraint(t *testing.T) {
 		}
 	}
 	fmt.Println("")
-	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	scheduleResult, repairCount := utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	fmt.Printf("After the greedy repair, %v tasks got repaired", repairCount)
+
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
@@ -227,7 +229,9 @@ func TestEdmondsKarpWithConstraint(t *testing.T) {
 		}
 	}
 	fmt.Println("")
-	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	scheduleResult, repairCount = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	fmt.Printf("After the greedy repair, %v tasks got repaired", repairCount)
+
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
@@ -256,7 +260,9 @@ func TestEdmondsKarpWithConstraint(t *testing.T) {
 		}
 	}
 	fmt.Println("")
-	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	scheduleResult, repairCount = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	fmt.Printf("After the greedy repair, %v tasks got repaired", repairCount)
+
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
@@ -285,7 +291,9 @@ func TestEdmondsKarpWithConstraint(t *testing.T) {
 		}
 	}
 	fmt.Println("")
-	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	scheduleResult, repairCount = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	fmt.Printf("After the greedy repair, %v tasks got repaired", repairCount)
+
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)

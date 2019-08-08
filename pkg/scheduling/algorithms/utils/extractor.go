@@ -71,7 +71,7 @@ func ExtractScheduleResult(graph *flowgraph.Graph, sourceId flowgraph.NodeID) ma
 	return scheduleResult
 }
 
-func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64, sinkId flowgraph.NodeID) map[Mapping]uint64 {
+func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64, sinkId flowgraph.NodeID) (map[Mapping]uint64, int) {
 	machineResidual := make(map[flowgraph.NodeID]uint64)
 	for machine, _ := range graph.ResourceSet {
 		machineResidual[machine.ID] = machine.GetResidualy(sinkId)
@@ -88,8 +88,10 @@ func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64,
 		}
 	}
 
+	repairCount := 0
 	for taskId, list := range whatever {
 		if len(list) > 1 {
+			repairCount++
 			rescheduleMap[taskId] = 0
 			for _, machineId := range list {
 				m := Mapping{taskId, machineId}
@@ -127,10 +129,11 @@ func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64,
 			heap.Push(&pq, &MachineStruct{machineWithLargestResidual.MachineId,
 				machineWithLargestResidual.Residual - rescheduleTask.Flow})
 		} else {
+			heap.Push(&pq, machineWithLargestResidual)
 			scheduleResult[Mapping{rescheduleTask.TaskId, 0}] = 0
 		}
 	}
 
-	return scheduleResult
+	return scheduleResult, repairCount
 }
 

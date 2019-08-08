@@ -67,8 +67,10 @@ func (ss *schedulerServer) handleMigrationDelta(delta proto.SchedulingDelta) {
 
 func (ss *schedulerServer) Schedule(context.Context, *proto.ScheduleRequest) (*proto.SchedulingDeltas, error) {
 	schedulerStats := &utility.SchedulerStats{}
-	numScheduled, schedulingDeltas := ss.scheduler.ScheduleAllJobs(schedulerStats)
-	log.Printf("%v tasks are scheduled, scheduling deltas are:%v", numScheduled, schedulingDeltas)
+	//numScheduled, schedulingDeltas := ss.scheduler.ScheduleAllJobs(schedulerStats)
+	//log.Printf("%v tasks are scheduled, scheduling deltas are:%v", numScheduled, schedulingDeltas)
+	_, schedulingDeltas := ss.scheduler.ScheduleAllJobs(schedulerStats)
+
 	schedulingDeltasReturned := &proto.SchedulingDeltas{
 		Deltas: make([]*proto.SchedulingDelta, 0),
 	}

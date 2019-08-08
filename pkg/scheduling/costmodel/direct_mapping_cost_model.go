@@ -1,7 +1,6 @@
 package costmodel
 
 import (
-	"fmt"
 	"log"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
@@ -59,7 +58,7 @@ func (dmc *directMappingCostModel) TaskToUnscheduledAgg(taskID util.TaskID) ArcD
 }
 
 func (dmc *directMappingCostModel) UnscheduledAggToSink(id util.JobID) ArcDescriptor {
-	fmt.Printf("debug unschedule : %v; %v; capacity %d\n", id, dmc.jobToRequestSlots, dmc.jobToRequestSlots[id])
+	//fmt.Printf("debug unschedule : %v; %v; capacity %d\n", id, dmc.jobToRequestSlots, dmc.jobToRequestSlots[id])
 	capacity := dmc.jobToRequestSlots[id]
 	return NewArcDescriptor(0, uint64(capacity), 0)
 }
@@ -72,16 +71,16 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 	if requestSlots > machineResourceSlots.AvailableSlots {
 		return NewArcDescriptor(0, 0, 0)
 	}
-	x := dmc.getBalancedSlots()
+	//x := dmc.getBalancedSlots()
 	var factor int64 = 1
-	expectCapacity := float64(capacity) * x
+	expectCapacity := float64(capacity)
 	if float64(requestSlots) > (float64(capacity) - float64(usage)) {
 		// TODO: factor
 		factor *= 2
 	}
 	cost := float64(maxCapacity*maxCapacity) / ((expectCapacity - float64(usage)) * float64(requestSlots))
-	log.Printf("resourceID %d 's capacity is %d, expectCapacity is %d, usage is %d, requestSlots is %d "+
-		"and cost is %d\n", resourceID, capacity, expectCapacity, usage, requestSlots, cost)
+	//log.Printf("resourceID %d 's capacity is %d, expectCapacity is %d, usage is %d, requestSlots is %d "+
+	//	"and cost is %d\n", resourceID, capacity, expectCapacity, usage, requestSlots, cost)
 	return NewArcDescriptor(int64(cost)*factor, uint64(requestSlots), 0)
 }
 

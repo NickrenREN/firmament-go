@@ -3,8 +3,8 @@ from collections import Counter
 import plotly.graph_objects as go
 
 
-def read_file():
-    with open("dimacs", "r") as file:
+def read_file(file_name):
+    with open(file_name, "r") as file:
         file.readline()
         p = file.readline()
         _, _, node_num, arc_num = p.split(" ")
@@ -81,4 +81,5 @@ def read_file():
 
 
 if __name__ == '__main__':
-    read_file()
+    read_file("mcmf_before")
+    read_file("mcmf-after")

@@ -107,8 +107,8 @@ func generateGraphWithCostAndCapacity() *flowgraph.Graph {
 }
 
 func TestBenchSuccessiveShortestPathWithDijkstra(b *testing.T) {
-	graph := generateRandomGraph(1000, 10000, 5, 100)
-	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 11002)
+	graph := generateRandomGraph(5000, 5000, 5, 100)
+	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 10002)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 
@@ -140,7 +140,9 @@ func TestSuccessiveShortesPathWithDijkstra(t *testing.T) {
 			}
 		}
 	}
-	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	scheduleResult, repairCount := utils.GreedyRepairFlow(graph, scheduleResult, 7)
+	fmt.Printf("After the greedy repair, %v tasks got repaired", repairCount)
+
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
@@ -164,8 +166,9 @@ func TestSuccessiveShortesPathWithDijkstra(t *testing.T) {
 		}
 	}
 
-	fmt.Println("After the repair")
-	scheduleResult = utils.GreedyRepairFlow(graph, scheduleResult, 10102)
+	scheduleResult, repairCount = utils.GreedyRepairFlow(graph, scheduleResult, 10102)
+	fmt.Printf("After the greedy repair, %v tasks got repaired", repairCount)
+
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
