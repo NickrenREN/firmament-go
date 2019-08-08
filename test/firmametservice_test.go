@@ -1,4 +1,4 @@
-package firmamentservice
+package test
 
 import (
 	"context"
@@ -6,67 +6,73 @@ import (
 	"github.com/labstack/gommon/log"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"nickren/firmament-go/pkg/firmamentservice"
 	"nickren/firmament-go/pkg/proto"
 	"strconv"
 )
 
 var _ = Describe("Firmametservice", func() {
 	glog.Info("Test")
-	var ss = NewSchedulerServer()
-
+	var ss = firmamentservice.NewSchedulerServer()
+	var addMachine = func(id int64, core int) {
+		uid := strconv.FormatInt(id, 10)
+		puUid := strconv.FormatInt(id+1000, 10)
+		rtnd := createMockRTND(uid, puUid, 64)
+		response, err := ss.NodeAdded(context.Background(), rtnd)
+		Expect(err).Should(BeNil())
+		Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_ADDED_OK))
+	}
+	var addJobs = func(id, core, jobID int) {
+		jdUid := strconv.FormatInt(int64(jobID), 10)
+		td := createMockTaskDescription(jdUid, uint64(jobID*100+id), core)
+		response, err := ss.TaskSubmitted(context.Background(), td)
+		Expect(err).Should(BeNil())
+		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
+	}
 	Describe("Add Machine using firmament service", func() {
 		Context("start test", func() {
 			It("example 1", func() {
-				for idx := 1; idx <= 500; idx++ {
-					id := int64(idx)
-					uid := strconv.FormatInt(id, 10)
-					puUid := strconv.FormatInt(id+1000, 10)
-					//fmt.Printf("%s,%s \n", uid, puUid)
-					rtnd := createMockRTND(uid, puUid, 64)
-					response, err := ss.NodeAdded(context.Background(), rtnd)
-					Expect(err).Should(BeNil())
-					Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_ADDED_OK))
-				}
+				addMachine(1, 16)
+				addMachine(2, 32)
+				addMachine(48, 1)
+				addMachine(64, 1)
 			})
-			PIt("example 2", func() {
-				rtnd := createMockRTND("222", "2222", 32)
-				response, err := ss.NodeAdded(context.Background(), rtnd)
-				Expect(err).Should(BeNil())
-				Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_ADDED_OK))
-			})
-			PIt("example 3", func() {
-				rtnd := createMockRTND("333", "3333", 33)
-				response, err := ss.NodeAdded(context.Background(), rtnd)
-				Expect(err).Should(BeNil())
-				Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_ADDED_OK))
-			})
+		})
+		PIt("example 2", func() {
+			for id := 1; id <= 500; id++ {
+				addMachine(int64(id), 16)
+			}
 		})
 	})
 	Describe("Add Taks using firmament service", func() {
 		Context("start test", func() {
 			It("example job 1", func() {
-				By(" first task with core 4")
-				td := createMockTaskDescription("77", 71, 4)
-				response, err := ss.TaskSubmitted(context.Background(), td)
-				Expect(err).Should(BeNil())
-				Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
-				By(" second task with core 8")
-				td = createMockTaskDescription("77", 72, 8)
-				response, err = ss.TaskSubmitted(context.Background(), td)
-				Expect(err).Should(BeNil())
-				Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
+				By(" first job with 10slots and 10 tasks")
+				for id := 1; id <= 5; id++ {
+					addJobs(id, 10, 11)
+					addJobs(id, 10, 22)
+				}
 			})
-			It("example job 2", func() {
-				By(" first task with core 4")
-				td := createMockTaskDescription("88", 81, 4)
-				response, err := ss.TaskSubmitted(context.Background(), td)
-				Expect(err).Should(BeNil())
-				Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
-				By(" first task with core 8")
-				td = createMockTaskDescription("88", 82, 8)
-				response, err = ss.TaskSubmitted(context.Background(), td)
-				Expect(err).Should(BeNil())
-				Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
+			PIt("example job 2", func() {
+				By(" first job with 10slots and 5 tasks")
+				for id := 1; id <= 10; id++ {
+					addJobs(id, 10, 11)
+					addJobs(id, 10, 22)
+				}
+			})
+			PIt("example job 2", func() {
+				By(" first job with 10slots and 5 tasks")
+				for id := 1; id <= 5; id++ {
+					addJobs(id, 10, 11)
+					addJobs(id, 20, 22)
+				}
+			})
+			PIt("example job 2", func() {
+				By(" first job with 10slots and 5 tasks")
+				for id := 1; id <= 6; id++ {
+					addJobs(id, 10, 11)
+					addJobs(id, 10, 22)
+				}
 			})
 		})
 	})
