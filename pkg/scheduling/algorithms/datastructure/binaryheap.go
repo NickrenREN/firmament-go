@@ -1,9 +1,7 @@
 package datastructure
 
-import "nickren/firmament-go/pkg/scheduling/flowgraph"
-
 type Distance struct {
-	NodeId   flowgraph.NodeID
+	NodeId   uint64
 	Distance int64
 }
 

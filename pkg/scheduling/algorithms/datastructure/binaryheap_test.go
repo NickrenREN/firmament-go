@@ -1,7 +1,6 @@
 package datastructure
 
 import (
-	"nickren/firmament-go/pkg/scheduling/flowgraph"
 	"testing"
 	"container/heap"
 )
@@ -17,7 +16,7 @@ func TestBinaryHeap_PushAndPop(t * testing.T) {
     i := 0
     for id, d := range items {
         pq[i] = &Distance{
-			NodeId:   flowgraph.NodeID(id),
+			NodeId:   uint64(id),
 			Distance: d,
 		}
 		i++

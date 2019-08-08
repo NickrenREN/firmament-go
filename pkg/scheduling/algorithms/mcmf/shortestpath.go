@@ -59,17 +59,17 @@ import (
 	 }
 	 //heap.Init(&pq)
 	 //heap.Push(&pq, &datastructure.Distance{src, 0})
-	 fh.Insert(int64(0), &datastructure.Distance{src, 0})
+	 fh.Insert(int64(0), &datastructure.Distance{uint64(src), 0})
 	 distance[int(src)] = 0
 
 	 //for pq.Len() > 0 {
 	 for fh.Len() > 0 {
 	 	//current := heap.Pop(&pq).(*datastructure.Distance)
 	 	current := fh.ExtractMin().Value.(*datastructure.Distance)
-	 	currentNode := graph.Node(current.NodeId)
+	 	currentNode := graph.Node(flowgraph.NodeID(current.NodeId))
 	 	currentNode.Visited = visiteCount
 
-	 	if current.NodeId == dst {
+	 	if flowgraph.NodeID(current.NodeId) == dst {
 	 		return distance, parent
 		}
 
@@ -80,9 +80,9 @@ import (
 	 			updatedCost := current.Distance + arcCost
 	 			if updatedCost < distance[int(nextId)] {
 					distance[int(nextId)] = updatedCost
-					parent[int(nextId)] = current.NodeId
+					parent[int(nextId)] = flowgraph.NodeID(current.NodeId)
 					//heap.Push(&pq, &datastructure.Distance{nextId, updatedCost})
-					fh.Insert(updatedCost, &datastructure.Distance{nextId, updatedCost})
+					fh.Insert(updatedCost, &datastructure.Distance{uint64(nextId), updatedCost})
 				}
 			}
 		}

@@ -17,6 +17,7 @@ package flowgraph
 import (
 	"log"
 	"math/rand"
+	"nickren/firmament-go/pkg/scheduling/algorithms/datastructure"
 	"time"
 
 	"nickren/firmament-go/pkg/scheduling/utility/queue"
@@ -54,7 +55,32 @@ type Graph struct {
 	RandomizeNodeIDs bool
 }
 
-func CopyGraph(graph *Graph) *Graph {
+func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
+	incrementalGraph := CopyGraph(graph, true)
+	src := incrementalGraph.AddNode()
+	for id, node := range incrementalGraph.NodeMap {
+		node.Visited = 0
+		if node.Type == NodeTypeUnscheduledTask {
+			var request uint64
+			for _, arc := range node.OutgoingArcMap {
+				request = arc.CapUpperBound
+				break
+			}
+			incrementalGraph.AddArcWithCapAndCost(src.ID, id, request, 0)
+			incrementalGraph.TaskSet[node] = struct{}{}
+		}
+
+		if node.Type == NodeTypeMachine {
+			incrementalGraph.ResourceSet[node] = struct{}{}
+		}
+	}
+	incrementalGraph.SourceID = src.ID
+	incrementalGraph.SinkID = 1
+	return incrementalGraph
+}
+
+
+func CopyGraph(graph *Graph, modify bool) *Graph {
 	fg := &Graph{
 		ArcSet:  make(map[*Arc]struct{}),
 		NodeMap: make(map[NodeID]*Node),
@@ -91,8 +117,43 @@ func CopyGraph(graph *Graph) *Graph {
 		fg.ArcSet[copyArc] = val
 
 	}
+	fg.UnusedIDs = queue.NewFIFO()
+
+	if modify {
+		for _, node := range fg.NodeMap {
+			node.Visited = 0
+		}
+		var visitCount uint32 = 1
+		for id, node := range graph.NodeMap {
+			if node.IsScheduled() {
+				nodeToDelete := fg.Node(id)
+				DFSDeleteNodeFromOriginGraph(fg, nodeToDelete, visitCount)
+				visitCount++
+			}
+		}
+	}
 
 	return fg
+}
+
+func DFSDeleteNodeFromOriginGraph(graph *Graph, nodeToDelete *Node, visitCount uint32) {
+	outArc := nodeToDelete.GetRandomArc()
+	deque := datastructure.NewDeque(5)
+	deque.PushEnd(nodeToDelete)
+
+	for !deque.IsEmpty() {
+		current := deque.PopEnd().(*Node)
+		for _, arc := range current.OutgoingArcMap {
+			arc.CapUpperBound -= outArc.CapUpperBound
+			if arc.DstNode.Visited < visitCount {
+				arc.DstNode.Visited = visitCount
+				deque.PushEnd(arc.DstNode)
+			}
+		}
+	}
+
+	graph.DeleteArc(outArc)
+	graph.DeleteNode(nodeToDelete)
 }
 
 // Constructor equivalent in Go

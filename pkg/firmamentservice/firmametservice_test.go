@@ -17,7 +17,7 @@ var _ = Describe("Firmametservice", func() {
 	Describe("Add Machine using firmament service", func() {
 		Context("start test", func() {
 			It("example 1", func() {
-				for idx := 1; idx <= 500; idx++ {
+				for idx := 1; idx <= 5; idx++ {
 					id := int64(idx)
 					uid := strconv.FormatInt(id, 10)
 					puUid := strconv.FormatInt(id+1000, 10)

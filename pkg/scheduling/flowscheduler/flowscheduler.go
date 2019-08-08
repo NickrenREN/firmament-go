@@ -607,7 +607,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	s.tasksCompletedDuringSloverRun = make(map[uint64]struct{})
 
 	// Run the flow solver! This is where all the juicy goodness happens :)
-	taskMappings := s.solver.MockSolve()
+	taskMappings := s.solver.MockSolve(s.graphManager.GraphChangeManager().Graph())
 	s.solverRunCnt++
 	// firmament will populate max solve runtime and scheduler time stats
 	// and play all the simulation events that happened while the solver was running

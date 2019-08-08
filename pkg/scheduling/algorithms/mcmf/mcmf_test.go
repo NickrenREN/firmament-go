@@ -120,10 +120,7 @@ func TestSuccessiveShortestPathWithDEP(t *testing.T) {
 	}
 
 	graph = generateRandomGraph(100, 10000, 5, 100)
-	copyGraph := flowgraph.CopyGraph(graph)
 	maxFlow, minCost = SuccessiveShortestPathWithDEP(graph, 1, 10102)
-	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
-	maxFlow, minCost = SuccessiveShortestPathWithDEP(copyGraph, 1, 10102)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 
@@ -154,7 +151,6 @@ func TestSuccessiveShortesPathWithDijkstra(t *testing.T) {
 		}
 	}
 	graph = generateRandomGraph(100, 10000, 5, 100)
-	g1 := flowgraph.CopyGraph(graph)
 	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(graph, 1, 10102)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 	scheduleResult = utils.ExtractScheduleResult(graph, 1)
@@ -179,22 +175,11 @@ func TestSuccessiveShortesPathWithDijkstra(t *testing.T) {
 			}
 		}
 	}
-
-	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g1, 1, 10102)
-	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 
 func TestOptimizedRandomGraph(t *testing.T) {
 	graph := genetaeRandomOptimizedGraph(1000, 1000, 5, 100)
-	g1 := flowgraph.CopyGraph(graph)
-	g2 := flowgraph.CopyGraph(graph)
 	maxFlow, minCost := SuccessiveShortestPathWithDEP(graph, 1, 2002)
-	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
-
-	maxFlow, minCost = SuccessiveShortestPathWithDEP(g1, 1, 2002)
-	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
-
-	maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g2, 1, 2002)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 

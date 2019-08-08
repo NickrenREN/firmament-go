@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"nickren/firmament-go/pkg/scheduling/algorithms/mcmf"
+	"nickren/firmament-go/pkg/scheduling/algorithms/utils"
 	"os"
 	"os/exec"
 
@@ -35,7 +37,7 @@ var (
 
 type Solver interface {
 	Solve() flowmanager.TaskMapping
-	MockSolve() flowmanager.TaskMapping
+	MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping
 }
 
 type flowlesslySolver struct {
@@ -55,16 +57,44 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 	}
 }
 
+
 // NOTE: assume we don't have debug flag
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
-func (fs *flowlesslySolver) MockSolve() flowmanager.TaskMapping {
+func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
 	outputFile, _ := os.OpenFile("dimacs", os.O_WRONLY|os.O_CREATE, 0666)
 	defer outputFile.Close()
 	fs.toSolver = outputFile
 	fs.writeGraph()
+	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
+	maxFlow, minCost := mcmf.SuccessiveShortestPathWithDijkstra(copyGraph, copyGraph.SourceID, copyGraph.SinkID)
+	fmt.Printf("maxFlow %v, minCost %v", maxFlow, minCost)
+
 	tm := make(map[flowgraph.NodeID]flowgraph.NodeID)
-	//tm[6] = 2
+	scheduleResult := utils.ExtractScheduleResult(copyGraph, copyGraph.SourceID)
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+		} else {
+			if mapping.ResourceId == 0 {
+				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+			}
+		}
+	}
+
+	scheduleResult = utils.GreedyRepairFlow(copyGraph, scheduleResult, copyGraph.SinkID)
+	fmt.Printf("After the greedy repair")
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			tm[mapping.TaskId] = mapping.ResourceId
+			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+		} else {
+			if mapping.ResourceId == 0 {
+				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+			}
+		}
+	}
+
 	return tm
 }
 

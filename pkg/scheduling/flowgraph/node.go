@@ -137,6 +137,17 @@ func (n *Node) AddArc(arc *Arc) {
 	}
 }
 
+func (n *Node) GetRandomArc() *Arc {
+	for _, arc := range n.OutgoingArcMap {
+		return arc
+	}
+	return nil
+}
+
+func (n *Node) IsScheduled() bool {
+	return n.Type == NodeTypeScheduledTask
+}
+
 func (n *Node) GetResidualy(sinkId NodeID) uint64 {
 	return n.OutgoingArcMap[sinkId].CapUpperBound
 	/*capacity := residual + n.IncomingArcMap[sinkId].CapUpperBound
