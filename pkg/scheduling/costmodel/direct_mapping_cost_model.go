@@ -80,9 +80,9 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 		factor *= 2
 	}
 	cost := float64(maxCapacity*maxCapacity) / ((expectCapacity - float64(usage)) * float64(requestSlots))
-	cost = normalizeCost(cost, 1, 10000, 1, 100)
-	log.Printf("resourceID %d 's capacity is %d, expectCapacity is %d, usage is %d, requestSlots is %d "+
-		"and cost is %d\n", resourceID, capacity, expectCapacity, usage, requestSlots, cost)
+	//cost = normalizeCost(cost, 1, 10000, 1, 100)
+	log.Printf("debug taskID %v, resourceID %d 's capacity is %v, expectCapacity is %v, usage is %v, requestSlots is %v "+
+		"and cost is %d\n", taskID, resourceID, capacity, expectCapacity, usage, requestSlots, cost)
 	return NewArcDescriptor(int64(cost)*factor, uint64(requestSlots), 0)
 }
 
@@ -151,8 +151,9 @@ func (dmc *directMappingCostModel) AddMachine(r *pb.ResourceTopologyNodeDescript
 	if _, ok := dmc.machineToResTopo[id]; !ok {
 		dmc.machineToResTopo[id] = r
 	}
-	capacity := dmc.getSlotsByMachineID(id)
-	r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
+	// TODO: there is a bug that effect norm result
+	_ = dmc.getSlotsByMachineID(id)
+	//r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
 	return
 }
 
@@ -200,6 +201,7 @@ func (dmc *directMappingCostModel) GatherStats(accumulator, other *flowgraph.Nod
 		if other.Type == flowgraph.NodeTypeSink {
 			// TODO: update resource available
 			accumulator.ResourceDescriptor.NumRunningTasksBelow = uint64(len(accumulator.ResourceDescriptor.CurrentRunningTasks))
+			accumulator.ResourceDescriptor.NumSlotsBelow = dmc.maxTasksPerMachine
 			machineResourceSlots := dmc.machineToResourceSlots[accumulator.ResourceID]
 			newAvailableSlots := NewRequestSlots(accumulator.ResourceDescriptor.AvailableResources)
 			dmc.machineToResourceSlots[accumulator.ResourceID] = NewMachineResourceSlots(machineResourceSlots.CapacitySlots, newAvailableSlots)
@@ -232,9 +234,12 @@ func (dmc *directMappingCostModel) DebugInfoCSV() string {
 
 func (dmc *directMappingCostModel) getBalancedSlots() float64 {
 	usage := dmc.sumMachineCapacitySlots - dmc.sumMachineAvailableSlots
-	balancedSlots := float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
-	log.Printf("balacned slots number : %d", balancedSlots)
-	return balancedSlots
+	balancedScores := float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
+	log.Printf("balacned slots number : %d", balancedScores)
+	if balancedScores >= 1.0 {
+		balancedScores = 1.0
+	}
+	return balancedScores
 }
 
 func (dmc *directMappingCostModel) getSlotsByTaskID(id util.TaskID) RequestSlots {
