@@ -28,7 +28,7 @@ type Arc struct {
 	Dst        NodeID
 	SrcNode    *Node
 	DstNode    *Node
-	ReverseArc *Arc
+	//ReverseArc *Arc
 
 	CapLowerBound uint64
 	CapUpperBound uint64

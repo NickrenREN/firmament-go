@@ -16,9 +16,11 @@ package flowgraph
 
 import (
 	"fmt"
+	"github.com/aybabtme/uniplot/histogram"
 	"log"
 	"math/rand"
 	"nickren/firmament-go/pkg/scheduling/algorithms/datastructure"
+	"os"
 	"runtime"
 	"time"
 
@@ -84,6 +86,7 @@ func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
 				request = arc.CapUpperBound
 				break
 			}
+			node.Excess = int64(request)
 			incrementalGraph.AddArcWithCapAndCost(src.ID, id, request, 0)
 			incrementalGraph.TaskSet[node] = struct{}{}
 		}
@@ -109,7 +112,6 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 	fg.SourceID = graph.SourceID
 	fg.NextID = graph.NextID
 
-	s1 := time.Now()
 	for id, val := range graph.NodeMap {
 		node := &Node{
 			ID:             id,
@@ -122,7 +124,6 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		}
 		fg.NodeMap[id] = node
 	}
-	fmt.Printf("copy nodes took %v\n", time.Since(s1))
 
 	for node, val := range graph.TaskSet {
 		fg.TaskSet[fg.NodeMap[node.ID]] = val
@@ -132,16 +133,29 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		fg.ResourceSet[fg.NodeMap[node.ID]] = val
 	}
 
-	s2 := time.Now()
+	costMap := make(map[int64]int)
+	costArr := make([]float64, 0)
 	for arc, _ := range graph.ArcSet {
+		if arc.Cost > 0 && arc.Cost < 10001 {
+			costArr = append(costArr, float64(arc.Cost))
+		}
 		fg.AddArcWithCapAndCost(arc.Src, arc.Dst, arc.CapUpperBound, arc.Cost)
-		//fg.ArcSet[copyArc] = val
-		arc.ReverseArc = nil
-
+		if _, ok := costMap[arc.Cost]; ok {
+			costMap[arc.Cost]++
+		} else {
+			costMap[arc.Cost] = 1
+		}
 	}
-	fmt.Printf("copy arcs took %v\n", time.Since(s2))
+
+	for cost, count := range costMap {
+		fmt.Printf("cost: %v, count: %v\n", cost, count)
+	}
+	hist := histogram.Hist(20, costArr)
+	histogram.Fprint(os.Stdout, hist, histogram.Linear(5))
+
 	fg.UnusedIDs = queue.NewFIFO()
 
+	// TODO might rethink about the implementation here
 	if modify {
 		for _, node := range fg.NodeMap {
 			node.Visited = 0

@@ -64,7 +64,7 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
 func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
-	go fs.WriteGraph("mcmf_before")
+	//fs.WriteGraph("mcmf_before")
 	start := time.Now()
 	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
 	elapsed := time.Since(start)
@@ -80,31 +80,31 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 	scheduleResult := utils.ExtractScheduleResult(copyGraph, copyGraph.SourceID)
 	elapsed = time.Since(start)
 	fmt.Printf("extract result took %s\n", elapsed)
-	/*for mapping, flow := range scheduleResult {
+	for mapping, flow := range scheduleResult {
 		if flow != 0 {
-			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+			//fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
 			if mapping.ResourceId == 0 {
-				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+				//fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
 			}
 		}
-	}*/
+	}
 	start = time.Now()
 	scheduleResult, repairCount := utils.GreedyRepairFlow(copyGraph, scheduleResult, copyGraph.SinkID)
 	elapsed = time.Since(start)
 	fmt.Printf("greedy repair took %s\n", elapsed)
 	fmt.Printf("After the greedy repair, %v tasks got repaired\n", repairCount)
-	/*for mapping, flow := range scheduleResult {
+	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			tm[mapping.TaskId] = mapping.ResourceId
-			fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
+			//fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
 			if mapping.ResourceId == 0 {
-				fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+				//fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
 			}
 		}
-	}*/
-
+	}
+	utils.ExamCostModel(copyGraph, tm)
 	return tm
 }
 

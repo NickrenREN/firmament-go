@@ -5,6 +5,7 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"math/rand"
 	"nickren/firmament-go/pkg/firmamentservice"
 	"nickren/firmament-go/pkg/proto"
 	"strconv"
@@ -38,7 +39,15 @@ var _ = Describe("Firmametservice", func() {
 			})
 			It("example 1", func() {
 				for i := 1; i <= 1000; i++ {
-					addMachine(int64(i), 10)
+					if i % 4 == 0 {
+						addMachine(int64(i), 32)
+					} else if i %4 == 1 {
+						addMachine(int64(i), 64)
+					} else if i %4 == 2 {
+						addMachine(int64(i), 96)
+					} else {
+						addMachine(int64(i), 128)
+					}
 				}
 			})
 		})
@@ -47,8 +56,8 @@ var _ = Describe("Firmametservice", func() {
 		Context("start test", func() {
 			It("example job 1", func() {
 				By(" first job with 10slots and 10 tasks")
-				for id := 1; id <= 1000; id++ {
-					addJobs(id, 5, 11)
+				for id := 1; id <= 5000; id++ {
+					addJobs(id, rand.Intn(19) + 1, 11)
 				}
 			})
 			PIt("example job 2", func() {
@@ -86,7 +95,7 @@ var _ = Describe("Firmametservice", func() {
 					_, err := ss.Schedule(context.Background(), sq)
 					Expect(err).Should(BeNil())
 				})
-				Expect(runtime.Seconds()).Should(BeNumerically("<", 60), "runtime must be short")
+				Expect(runtime.Seconds()).Should(BeNumerically("<", 600), "runtime must be short")
 			}, 1)
 		})
 	})

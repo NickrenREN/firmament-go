@@ -2,7 +2,10 @@ package utils
 
 import (
 	"container/heap"
+	"fmt"
+	"github.com/aybabtme/uniplot/histogram"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
+	"os"
 	"sort"
 )
 
@@ -135,5 +138,53 @@ func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64,
 	}
 
 	return scheduleResult, repairCount
+}
+
+func ExamCostModel(graph *flowgraph.Graph, tm map[flowgraph.NodeID]flowgraph.NodeID) {
+	capacityMap := make(map[flowgraph.NodeID]uint64)
+	usageMap := make(map[flowgraph.NodeID]uint64)
+	var totalFreeSlots uint64 = 0
+	var totalUnScheduledSlots uint64 = 0
+	for node, _ := range graph.ResourceSet {
+		outArc := graph.GetArcByIds(node.ID, graph.SinkID)
+		inArc := graph.GetArcByIds(graph.SinkID, node.ID)
+		var machineCapacity uint64
+		if outArc != nil {
+			machineCapacity += outArc.CapUpperBound
+		}
+		if inArc != nil {
+			machineCapacity += inArc.CapUpperBound
+		}
+		capacityMap[node.ID] = machineCapacity
+		totalFreeSlots += machineCapacity
+	}
+
+	for taskId, machineId := range tm {
+		srcNode := graph.Node(taskId)
+		dstNode := graph.Node(machineId)
+		if dstNode.Type == flowgraph.NodeTypeJobAggregator {
+			totalUnScheduledSlots += uint64(srcNode.Excess)
+		} else {
+			totalFreeSlots -= uint64(srcNode.Excess)
+			if _, ok := usageMap[machineId]; ok {
+				usageMap[machineId] += uint64(srcNode.Excess)
+			} else {
+				usageMap[machineId] = uint64(srcNode.Excess)
+			}
+		}
+	}
+
+	fmt.Printf("After the MCMF schedule, there are %v unscheduled slots and %v free slots\n",
+		totalUnScheduledSlots, totalFreeSlots)
+
+	usagePercentage := make([]float64, len(capacityMap))
+	index := 0
+	for id, capacity := range capacityMap {
+		usagePercentage[index] = float64(usageMap[id]) / float64(capacity)
+		index++
+	}
+
+	hist := histogram.Hist(10, usagePercentage)
+	histogram.Fprint(os.Stdout, hist, histogram.Linear(5))
 }
 

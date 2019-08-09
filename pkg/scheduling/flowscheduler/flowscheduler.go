@@ -8,7 +8,6 @@ import (
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/costmodel"
 	"nickren/firmament-go/pkg/scheduling/dimacs"
-	//"nickren/firmament-go/pkg/scheduling/flowgraph"
 	"nickren/firmament-go/pkg/scheduling/flowmanager"
 	ss "nickren/firmament-go/pkg/scheduling/solver"
 	"nickren/firmament-go/pkg/scheduling/utility"
@@ -657,7 +656,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	// write schedule graph
 	start := time.Now()
 
-	go s.solver.WriteGraph("mcmf-after")
+	//s.solver.WriteGraph("mcmf-after")
 	elapsed := time.Since(start)
 	fmt.Printf("write graph took %s\n", elapsed)
 	return numScheduled, deltas
