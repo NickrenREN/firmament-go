@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/aybabtme/uniplot/histogram"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
+	"nickren/firmament-go/pkg/scheduling/utility"
 	"os"
 	"sort"
 )
@@ -80,6 +81,13 @@ func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64,
 		machineResidual[machine.ID] = machine.GetResidualy(sinkId)
 	}
 
+	jobIdToUnMap := make(map[utility.JobID]*flowgraph.Node)
+	for _, node := range graph.NodeMap {
+		if node.Type == flowgraph.NodeTypeJobAggregator {
+			jobIdToUnMap[node.JobID] = node
+		}
+	}
+
 	whatever := make(map[flowgraph.NodeID][]flowgraph.NodeID)
 	rescheduleMap := make(map[flowgraph.NodeID]uint64)
 	for mapping, _ := range scheduleResult {
@@ -133,7 +141,11 @@ func GreedyRepairFlow(graph *flowgraph.Graph, scheduleResult map[Mapping]uint64,
 				machineWithLargestResidual.Residual - rescheduleTask.Flow})
 		} else {
 			heap.Push(&pq, machineWithLargestResidual)
-			scheduleResult[Mapping{rescheduleTask.TaskId, 0}] = 0
+			scheduleResult[Mapping{rescheduleTask.TaskId,
+				jobIdToUnMap[graph.Node(rescheduleTask.TaskId).JobID].ID}] = rescheduleTask.Flow
+
+			fmt.Printf("task %v is scheduled to UN node %v, flow is %v", rescheduleTask.TaskId,
+				jobIdToUnMap[graph.Node(rescheduleTask.TaskId).JobID].ID, rescheduleTask.Flow)
 		}
 	}
 

@@ -71,7 +71,9 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 	if requestSlots > machineResourceSlots.AvailableSlots {
 		return NewArcDescriptor(0, 0, 0)
 	}
-	x := dmc.getBalancedSlots()
+	//x := dmc.getBalancedSlots()
+	x := 1.0
+
 	var factor int64 = 1
 	expectCapacity := float64(capacity) * x
 	if float64(requestSlots) > (float64(capacity) - float64(usage)) {
@@ -234,7 +236,7 @@ func (dmc *directMappingCostModel) DebugInfoCSV() string {
 func (dmc *directMappingCostModel) getBalancedSlots() float64 {
 	usage := dmc.sumMachineCapacitySlots - dmc.sumMachineAvailableSlots
 	balancedScores := float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
-	log.Printf("balacned slots number : %d", balancedScores)
+	//log.Printf("balacned slots number : %d", balancedScores)
 	if balancedScores >= 1.0 {
 		balancedScores = 1.0
 	}

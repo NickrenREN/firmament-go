@@ -78,15 +78,20 @@ func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
 	incrementalGraph := CopyGraph(graph, true)
 	PrintMemUsage()
 	src := incrementalGraph.AddNode()
+	var totalRequest uint64 = 0
 	for id, node := range incrementalGraph.NodeMap {
 		node.Visited = 0
 		if node.Type == NodeTypeUnscheduledTask {
 			var request uint64
 			for _, arc := range node.OutgoingArcMap {
+				if arc.CapUpperBound == 0 {
+					continue
+				}
 				request = arc.CapUpperBound
 				break
 			}
 			node.Excess = int64(request)
+			totalRequest += request
 			incrementalGraph.AddArcWithCapAndCost(src.ID, id, request, 0)
 			incrementalGraph.TaskSet[node] = struct{}{}
 		}
@@ -97,6 +102,7 @@ func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
 	}
 	incrementalGraph.SourceID = src.ID
 	incrementalGraph.SinkID = 1
+	fmt.Printf("before mcmf, total request: %v", totalRequest)
 	return incrementalGraph
 }
 
@@ -112,7 +118,20 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 	fg.SourceID = graph.SourceID
 	fg.NextID = graph.NextID
 
+	var totalRequest uint64 = 0
 	for id, val := range graph.NodeMap {
+		if val.Type == NodeTypeUnscheduledTask {
+			var request uint64
+			for _, arc := range val.OutgoingArcMap {
+				if arc.CapUpperBound == 0 {
+					continue
+				}
+				request = arc.CapUpperBound
+				break
+			}
+			totalRequest += request
+		}
+
 		node := &Node{
 			ID:             id,
 			IncomingArcMap: make(map[NodeID]*Arc),
@@ -123,7 +142,11 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 			Potential: val.Potential,
 		}
 		fg.NodeMap[id] = node
+
+
 	}
+
+	fmt.Printf("The original graph has %v total task requests\n", totalRequest)
 
 	for node, val := range graph.TaskSet {
 		fg.TaskSet[fg.NodeMap[node.ID]] = val
@@ -136,6 +159,9 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 	costMap := make(map[int64]int)
 	costArr := make([]float64, 0)
 	for arc, _ := range graph.ArcSet {
+		if arc.CapUpperBound == 0 {
+			continue
+		}
 		if arc.Cost > 0 && arc.Cost < 10001 {
 			costArr = append(costArr, float64(arc.Cost))
 		}
@@ -163,6 +189,7 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		var visitCount uint32 = 1
 		for id, node := range graph.NodeMap {
 			if node.IsScheduled() {
+				fmt.Printf("delete node and it's path %v\n", id)
 				nodeToDelete := fg.Node(id)
 				DFSDeleteNodeFromOriginGraph(fg, nodeToDelete, visitCount)
 				visitCount++

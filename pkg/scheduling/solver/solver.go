@@ -80,8 +80,10 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 	scheduleResult := utils.ExtractScheduleResult(copyGraph, copyGraph.SourceID)
 	elapsed = time.Since(start)
 	fmt.Printf("extract result took %s\n", elapsed)
+	var totalFlow uint64 = 0
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
+			totalFlow += flow
 			//fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
 			if mapping.ResourceId == 0 {
@@ -89,21 +91,27 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 			}
 		}
 	}
+	fmt.Printf("before the repair, total flow is %v\n", totalFlow)
 	start = time.Now()
 	scheduleResult, repairCount := utils.GreedyRepairFlow(copyGraph, scheduleResult, copyGraph.SinkID)
 	elapsed = time.Since(start)
 	fmt.Printf("greedy repair took %s\n", elapsed)
 	fmt.Printf("After the greedy repair, %v tasks got repaired\n", repairCount)
+	totalFlow = 0
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
+			totalFlow += flow
 			tm[mapping.TaskId] = mapping.ResourceId
 			//fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
 			if mapping.ResourceId == 0 {
 				//fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
+				//totalFlow += uint64(copyGraph.Node(mapping.TaskId).Excess)
 			}
 		}
 	}
+	fmt.Printf("after the repair, total flow is %v, length of tm is %v\n", totalFlow, len(tm))
+
 	utils.ExamCostModel(copyGraph, tm)
 	return tm
 }
