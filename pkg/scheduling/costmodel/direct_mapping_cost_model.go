@@ -71,9 +71,9 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 	if requestSlots > machineResourceSlots.AvailableSlots {
 		return NewArcDescriptor(0, 0, 0)
 	}
-	//x := dmc.getBalancedSlots()
+	x := dmc.getBalancedSlots()
 	var factor int64 = 1
-	expectCapacity := float64(capacity)
+	expectCapacity := float64(capacity) * x
 	if float64(requestSlots) > (float64(capacity) - float64(usage)) {
 		// TODO: factor
 		factor *= 2
@@ -150,7 +150,9 @@ func (dmc *directMappingCostModel) AddMachine(r *pb.ResourceTopologyNodeDescript
 	if _, ok := dmc.machineToResTopo[id]; !ok {
 		dmc.machineToResTopo[id] = r
 	}
+	// TODO: there is a bug that effect norm result
 	_ = dmc.getSlotsByMachineID(id)
+	//r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
 	return
 }
 
@@ -231,9 +233,12 @@ func (dmc *directMappingCostModel) DebugInfoCSV() string {
 
 func (dmc *directMappingCostModel) getBalancedSlots() float64 {
 	usage := dmc.sumMachineCapacitySlots - dmc.sumMachineAvailableSlots
-	balancedSlots := float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
-	log.Printf("balacned slots number : %d", balancedSlots)
-	return balancedSlots
+	balancedScores := float64(usage+dmc.sumTaskRequestSlots) / float64(dmc.sumMachineCapacitySlots)
+	log.Printf("balacned slots number : %d", balancedScores)
+	if balancedScores >= 1.0 {
+		balancedScores = 1.0
+	}
+	return balancedScores
 }
 
 func (dmc *directMappingCostModel) getSlotsByTaskID(id util.TaskID) RequestSlots {

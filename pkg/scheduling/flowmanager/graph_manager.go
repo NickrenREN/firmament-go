@@ -138,6 +138,10 @@ func (gm *graphManager) AddOrUpdateJobNodes(jobs []*pb.JobDescriptor) {
 		if taskNeedNode(rootTD) {
 			//log.Printf("AddOrUpdateJobNode: task:%v needs node\n", rootTD.Name)
 			rootTaskNode = gm.addTaskNode(jid, rootTD)
+			// TODO: there is a bug if childtask also has child tasks
+			for _, childTask := range rootTD.Spawned {
+				gm.costModeler.AddTask(utility.TaskID(childTask.Uid))
+			}
 			// Increment capacity from unsched agg node to sink.
 			gm.updateUnscheduledAggNode(unschedAggNode, 1)
 
@@ -164,6 +168,7 @@ func (gm *graphManager) UpdateTimeDependentCosts(jobs []*pb.JobDescriptor) {
 // and then propagates those changes up to the root.
 func (gm *graphManager) UpdateResourceTopology(rtnd *pb.ResourceTopologyNodeDescriptor) {
 	// TODO(ionel): We don't currently update the arc costs. Moreover, we should
+	// TODO: Refactor
 	// handle the case when a resource's parent changes.
 	rd := rtnd.ResourceDesc
 	oldCapacity := int64(gm.capacityFromResNodeToParent(rd))
@@ -642,7 +647,7 @@ func (gm *graphManager) addTaskNode(jobID utility.JobID, td *pb.TaskDescriptor) 
 	taskNode.Task = td
 	taskNode.JobID = jobID
 	gm.sinkNode.Excess--
-	// Insert mapping tast to node, must not already have mapping
+	// Insert mapping task to node, must not already have mapping
 	_, ok := gm.taskToNode[utility.TaskID(td.Uid)]
 	if ok {
 		log.Panicf("gm:addTaskNode Mapping for taskID:%v to node already present\n", td.Uid)
