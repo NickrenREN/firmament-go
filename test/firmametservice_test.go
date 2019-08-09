@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -54,11 +55,33 @@ var _ = Describe("Firmametservice", func() {
 	})
 	Describe("Add Taks using firmament service", func() {
 		Context("start test", func() {
-			It("example job 1", func() {
+			PIt("example job 1", func() {
 				By(" first job with 10slots and 10 tasks")
 				for id := 1; id <= 5000; id++ {
-					addJobs(id, rand.Intn(19) + 1, 11)
+					addJobs(id, rand.Intn(24) + 1, 11)
 				}
+			})
+			It("example job 1", func() {
+				By(" first job with 10slots and 10 tasks")
+				total := 0
+
+				for id := 1; id <= 4000; id++ {
+					if id % 4 == 0 {
+						addJobs(id, 10, 11)
+						total += 10
+					} else if id % 4 == 1 {
+						addJobs(id, 20, 11)
+						total += 20
+					} else if id % 4 == 2 {
+						addJobs(id, 30, 11)
+						total += 30
+					} else {
+						addJobs(id, 40, 11)
+						total += 40
+					}
+				}
+
+				fmt.Printf("fuck you %v", total)
 			})
 			PIt("example job 2", func() {
 				By(" first job with 10slots and 5 tasks")

@@ -25,7 +25,7 @@ type directMappingCostModel struct {
 
 const (
 	Unschedule_Factor uint64 = 10
-	baseDelta         int64  = 101
+	baseDelta         int64  = 10001
 	maxCapacity       int64  = 100
 )
 
@@ -150,8 +150,7 @@ func (dmc *directMappingCostModel) AddMachine(r *pb.ResourceTopologyNodeDescript
 	if _, ok := dmc.machineToResTopo[id]; !ok {
 		dmc.machineToResTopo[id] = r
 	}
-	capacity := dmc.getSlotsByMachineID(id)
-	r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
+	_ = dmc.getSlotsByMachineID(id)
 	return
 }
 
@@ -199,6 +198,7 @@ func (dmc *directMappingCostModel) GatherStats(accumulator, other *flowgraph.Nod
 		if other.Type == flowgraph.NodeTypeSink {
 			// TODO: update resource available
 			accumulator.ResourceDescriptor.NumRunningTasksBelow = uint64(len(accumulator.ResourceDescriptor.CurrentRunningTasks))
+			accumulator.ResourceDescriptor.NumSlotsBelow = dmc.maxTasksPerMachine
 			machineResourceSlots := dmc.machineToResourceSlots[accumulator.ResourceID]
 			newAvailableSlots := NewRequestSlots(accumulator.ResourceDescriptor.AvailableResources)
 			dmc.machineToResourceSlots[accumulator.ResourceID] = NewMachineResourceSlots(machineResourceSlots.CapacitySlots, newAvailableSlots)

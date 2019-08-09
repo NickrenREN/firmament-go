@@ -158,10 +158,13 @@ func ExamCostModel(graph *flowgraph.Graph, tm map[flowgraph.NodeID]flowgraph.Nod
 		capacityMap[node.ID] = machineCapacity
 		totalFreeSlots += machineCapacity
 	}
+	machineTotalCapacity := totalFreeSlots
 
+	var totalTaskRequest uint64 = 0
 	for taskId, machineId := range tm {
 		srcNode := graph.Node(taskId)
 		dstNode := graph.Node(machineId)
+		totalTaskRequest += uint64(srcNode.Excess)
 		if dstNode.Type == flowgraph.NodeTypeJobAggregator {
 			totalUnScheduledSlots += uint64(srcNode.Excess)
 		} else {
@@ -174,8 +177,8 @@ func ExamCostModel(graph *flowgraph.Graph, tm map[flowgraph.NodeID]flowgraph.Nod
 		}
 	}
 
-	fmt.Printf("After the MCMF schedule, there are %v unscheduled slots and %v free slots\n",
-		totalUnScheduledSlots, totalFreeSlots)
+	fmt.Printf("machine total capacity %v, task total request %v, After the MCMF schedule, there are %v unscheduled slots and %v free slots, unscheduled percentage is %v\n",
+		machineTotalCapacity, totalTaskRequest, totalUnScheduledSlots, totalFreeSlots, float64(totalUnScheduledSlots) / float64(totalTaskRequest))
 
 	usagePercentage := make([]float64, len(capacityMap))
 	index := 0
