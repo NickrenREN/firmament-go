@@ -25,7 +25,7 @@ type directMappingCostModel struct {
 
 const (
 	Unschedule_Factor uint64 = 10
-	baseDelta         int64  = 10001
+	baseDelta         int64  = 101
 	maxCapacity       int64  = 100
 )
 
@@ -81,6 +81,7 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 	cost := float64(maxCapacity*maxCapacity) / ((expectCapacity - float64(usage)) * float64(requestSlots))
 	//log.Printf("resourceID %d 's capacity is %d, expectCapacity is %d, usage is %d, requestSlots is %d "+
 	//	"and cost is %d\n", resourceID, capacity, expectCapacity, usage, requestSlots, cost)
+	cost = normalizeCost(cost, 1, 10000, 1, 100)
 	return NewArcDescriptor(int64(cost)*factor, uint64(requestSlots), 0)
 }
 
@@ -149,7 +150,8 @@ func (dmc *directMappingCostModel) AddMachine(r *pb.ResourceTopologyNodeDescript
 	if _, ok := dmc.machineToResTopo[id]; !ok {
 		dmc.machineToResTopo[id] = r
 	}
-	_ = dmc.getSlotsByMachineID(id)
+	capacity := dmc.getSlotsByMachineID(id)
+	r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
 	return
 }
 
@@ -197,7 +199,6 @@ func (dmc *directMappingCostModel) GatherStats(accumulator, other *flowgraph.Nod
 		if other.Type == flowgraph.NodeTypeSink {
 			// TODO: update resource available
 			accumulator.ResourceDescriptor.NumRunningTasksBelow = uint64(len(accumulator.ResourceDescriptor.CurrentRunningTasks))
-			accumulator.ResourceDescriptor.NumSlotsBelow = dmc.maxTasksPerMachine
 			machineResourceSlots := dmc.machineToResourceSlots[accumulator.ResourceID]
 			newAvailableSlots := NewRequestSlots(accumulator.ResourceDescriptor.AvailableResources)
 			dmc.machineToResourceSlots[accumulator.ResourceID] = NewMachineResourceSlots(machineResourceSlots.CapacitySlots, newAvailableSlots)
@@ -266,4 +267,8 @@ func (dmc *directMappingCostModel) getSlotsByMachineID(id util.ResourceID) Machi
 		}
 	}
 	return dmc.machineToResourceSlots[id]
+}
+
+func normalizeCost(cost, minBefore, maxBefore, minAfter, maxAfter float64) float64 {
+	return (maxAfter-minAfter)*((cost-minBefore)/(maxBefore-minBefore)) + minAfter
 }
