@@ -656,7 +656,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	// write schedule graph
 	start := time.Now()
 
-	//s.solver.WriteGraph("mcmf-after")
+	s.solver.WriteGraph("mcmf-after")
 	elapsed := time.Since(start)
 	fmt.Printf("write graph took %s\n", elapsed)
 	return numScheduled, deltas

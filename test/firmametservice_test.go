@@ -32,13 +32,13 @@ var _ = Describe("Firmametservice", func() {
 	}
 	Describe("Add Machine using firmament service", func() {
 		Context("start test", func() {
-			PIt("example 1", func() {
+			It("example 1", func() {
 				addMachine(1, 16)
 				addMachine(2, 32)
 				addMachine(3, 48)
 				addMachine(4, 64)
 			})
-			It("example 1", func() {
+			PIt("example 1", func() {
 				for i := 1; i <= 1000; i++ {
 					if i % 4 == 0 {
 						addMachine(int64(i), 32)
@@ -61,7 +61,7 @@ var _ = Describe("Firmametservice", func() {
 					addJobs(id, rand.Intn(24) + 1, 11)
 				}
 			})
-			It("example job 1", func() {
+			PIt("example job 1", func() {
 				By(" first job with 10slots and 10 tasks")
 				total := 0
 
@@ -90,7 +90,7 @@ var _ = Describe("Firmametservice", func() {
 					addJobs(id, 10, 22)
 				}
 			})
-			PIt("example job 2", func() {
+			It("example job 2", func() {
 				By(" first job with 10slots and 5 tasks")
 				for id := 1; id <= 5; id++ {
 					addJobs(id, 10, 11)

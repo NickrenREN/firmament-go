@@ -64,7 +64,7 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
 func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
-	//fs.WriteGraph("mcmf_before")
+	fs.WriteGraph("mcmf_before")
 	start := time.Now()
 	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
 	elapsed := time.Since(start)
