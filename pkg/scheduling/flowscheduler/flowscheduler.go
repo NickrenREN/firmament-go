@@ -610,7 +610,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	timeElapsed := time.Since(timestart)
 	fmt.Printf("construct graph took %v\n", timeElapsed)
 	// Run the flow solver! This is where all the juicy goodness happens :)
-	taskMappings := s.solver.MockSolve(s.graphManager.GraphChangeManager().Graph())
+	taskMappings := s.solver.MCMFSolve(s.graphManager.GraphChangeManager().Graph())
 	s.solverRunCnt++
 	// firmament will populate max solve runtime and scheduler time stats
 	// and play all the simulation events that happened while the solver was running

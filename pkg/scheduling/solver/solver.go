@@ -38,7 +38,7 @@ var (
 
 type Solver interface {
 	Solve() flowmanager.TaskMapping
-	MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping
+	MCMFSolve(graph *flowgraph.Graph) flowmanager.TaskMapping
 	WriteGraph(file string)
 }
 
@@ -63,7 +63,7 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 // NOTE: assume we don't have debug flag
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
-func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
+func (fs *flowlesslySolver) MCMFSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
 	fs.WriteGraph("mcmf_before")
 	start := time.Now()
 	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
@@ -84,10 +84,8 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			totalFlow += flow
-			//fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
 			if mapping.ResourceId == 0 {
-				//fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
 			}
 		}
 	}
@@ -102,11 +100,8 @@ func (fs *flowlesslySolver) MockSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 		if flow != 0 {
 			totalFlow += flow
 			tm[mapping.TaskId] = mapping.ResourceId
-			//fmt.Printf("task %v flow %v to machine %v\n", mapping.TaskId, flow, mapping.ResourceId)
 		} else {
 			if mapping.ResourceId == 0 {
-				//fmt.Printf("task %v is unscheduled\n", mapping.TaskId)
-				//totalFlow += uint64(copyGraph.Node(mapping.TaskId).Excess)
 			}
 		}
 	}
