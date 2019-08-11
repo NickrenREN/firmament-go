@@ -312,6 +312,7 @@ func (ss *schedulerServer) NodeAdded(context context.Context, rtnd *proto.Resour
 		return response, nil
 	}
 
+	// Do not need add root resource which is coordinator node
 	// rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
 	// if rootRs == nil {
 	//	return nil, fmt.Errorf("root resource status is nil")
@@ -436,18 +437,4 @@ func (ss *schedulerServer) AddNodeStats(context context.Context, resStats *proto
 	// TODO: add more states for the stats operations
 	response.Type = proto.NodeReplyType_NODE_ADDED_OK
 	return response, nil
-}
-
-// Get member variable
-
-func (ss *schedulerServer) GetScheduler() flowscheduler.Scheduler {
-	return ss.scheduler
-}
-
-func (ss *schedulerServer) GetJobAndTaskMap() (*utility.JobMap, *utility.TaskMap) {
-	return ss.jobMap, ss.taskMap
-}
-
-func (ss *schedulerServer) GetResourceMap() *utility.ResourceMap {
-	return ss.resourceMap
 }

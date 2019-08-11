@@ -55,11 +55,15 @@ def read_file():
     colors = ["blue"] * len(label)
     ct = Counter(source)
     for idx, name in enumerate(label):
-        if not str(name).startswith("Task"):
-            continue
-        else:
+        if str(name).startswith("Res"):
+            colors[idx] = "green"
+        elif str(name).startswith("Task"):
             if ct[idx] == 1:
                 colors[idx] = "red"
+        elif str(name).startswith("UN"):
+            colors[idx]="black"
+        elif str(name).startswith("SIN"):
+            colors[idx]="pink"
 
     fig = go.Figure(data=[go.Sankey(
         node=dict(

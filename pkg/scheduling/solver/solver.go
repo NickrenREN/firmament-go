@@ -62,16 +62,6 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 func (fs *flowlesslySolver) MockSolve() flowmanager.TaskMapping {
 	//fs.writeGraph()
 	tm := make(map[flowgraph.NodeID]flowgraph.NodeID)
-	tm[15] = 5
-	tm[7] = 5
-	tm[11] = 3
-	tm[13] = 5
-	tm[14] = 4
-	tm[10] = 5
-	tm[17] = 4
-	tm[12] = 4
-	tm[16] = 5
-	tm[9] = 5
 	//fs.writeGraph()
 	return tm
 }
