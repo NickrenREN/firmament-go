@@ -138,10 +138,6 @@ func (gm *graphManager) AddOrUpdateJobNodes(jobs []*pb.JobDescriptor) {
 		if taskNeedNode(rootTD) {
 			//log.Printf("AddOrUpdateJobNode: task:%v needs node\n", rootTD.Name)
 			rootTaskNode = gm.addTaskNode(jid, rootTD)
-			// TODO: there is a bug if childtask also has child tasks
-			for _, childTask := range rootTD.Spawned {
-				gm.costModeler.AddTask(utility.TaskID(childTask.Uid))
-			}
 			// Increment capacity from unsched agg node to sink.
 			gm.updateUnscheduledAggNode(unschedAggNode, 1)
 
@@ -168,7 +164,6 @@ func (gm *graphManager) UpdateTimeDependentCosts(jobs []*pb.JobDescriptor) {
 // and then propagates those changes up to the root.
 func (gm *graphManager) UpdateResourceTopology(rtnd *pb.ResourceTopologyNodeDescriptor) {
 	// TODO(ionel): We don't currently update the arc costs. Moreover, we should
-	// TODO: Refactor
 	// handle the case when a resource's parent changes.
 	rd := rtnd.ResourceDesc
 	oldCapacity := int64(gm.capacityFromResNodeToParent(rd))
@@ -562,7 +557,7 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 	rd := rtnd.ResourceDesc
 	rID := utility.MustResourceIDFromString(rd.Uuid)
 	resourceNode := gm.nodeForResourceID(rID)
-	//fmt.Printf("uuid %v \n", rtnd)
+
 	addedNewResNode := false
 	if resourceNode == nil {
 		addedNewResNode = true
@@ -601,15 +596,16 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 	}
 
 	gm.visitTopologyChildren(rtnd)
-	//if rtnd.ParentId == "" {
-	//	if rd.Type != pb.ResourceDescriptor_RESOURCE_COORDINATOR {
-	//		log.Panicf("A resource node that is not a coordinator must have a parent")
-	//	}
-	//	return
-	//}
+	if rtnd.ParentId == "" {
+		if rd.Type != pb.ResourceDescriptor_RESOURCE_MACHINE {
+			log.Panicf("A resource node that is not a coordinator must have a parent")
+		}
+		return
+	}
 
 	if addedNewResNode {
-		// Connect the node to the paren
+		// Connect the node to the parent
+		// TODO: refactor when add vm resource
 		if rtnd.ResourceDesc.Type == pb.ResourceDescriptor_RESOURCE_MACHINE {
 			return
 		}
