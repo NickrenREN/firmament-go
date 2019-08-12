@@ -7,17 +7,17 @@ import (
 )
 
 /**
-	This file contains shortest-path algorithms which will be used to solve MCMF problems
-	Some of these algorithms do not reply on potentials, some do
- */
+This file contains shortest-path algorithms which will be used to solve MCMF problems
+Some of these algorithms do not reply on potentials, some do
+*/
 
- // D-Esopo-Pape algorithm can tolerate the negative cost edge.
- // Despite it cannot tolerate negative cost cycle, in the successive shortest path algorithms
- // we will not have negative cost cycle
- func DEsopoPape(graph *flowgraph.Graph, src, dst flowgraph.NodeID) ([]int64, []flowgraph.NodeID) {
-	distance := make([]int64, len(graph.NodeMap) + 1)
-	parent := make([]flowgraph.NodeID, len(graph.NodeMap) + 1)
-	m := make([]int, len(graph.NodeMap) + 1)
+// D-Esopo-Pape algorithm can tolerate the negative cost edge.
+// Despite it cannot tolerate negative cost cycle, in the successive shortest path algorithms
+// we will not have negative cost cycle
+func DEsopoPape(graph *flowgraph.Graph, src, dst flowgraph.NodeID) ([]int64, []flowgraph.NodeID) {
+	distance := make([]int64, len(graph.NodeMap)+1)
+	parent := make([]flowgraph.NodeID, len(graph.NodeMap)+1)
+	m := make([]int, len(graph.NodeMap)+1)
 	for i := 1; i < len(parent); i++ {
 		distance[i] = math.MaxInt64
 		parent[i] = 0
@@ -31,7 +31,7 @@ import (
 		current := deque.PopFront().(flowgraph.NodeID)
 		m[int(current)] = 0
 		for nextId, arc := range graph.Node(current).OutgoingArcMap {
-			if arc.CapUpperBound > 0 && distance[int(nextId)] > distance[int(current)] + arc.Cost {
+			if arc.CapUpperBound > 0 && distance[int(nextId)] > distance[int(current)]+arc.Cost {
 				distance[int(nextId)] = distance[int(current)] + arc.Cost
 				parent[int(nextId)] = current
 				if m[int(nextId)] == 2 {
@@ -46,39 +46,39 @@ import (
 	}
 
 	return distance, parent
- }
+}
 
- func Dijkstra(graph *flowgraph.Graph, src, dst flowgraph.NodeID, visiteCount uint32) ([]int64, []flowgraph.NodeID) {
-	 distance := make([]int64, len(graph.NodeMap) + 1)
-	 parent := make([]flowgraph.NodeID, len(graph.NodeMap) + 1)
-	 //pq := make(datastructure.BinaryMinHeap, 0)
-	 fh := datastructure.NewFibHeap()
-	 for i := 1; i < len(parent); i++ {
-		 distance[i] = math.MaxInt64
-		 parent[i] = 0
-	 }
-	 //heap.Init(&pq)
-	 //heap.Push(&pq, &datastructure.Distance{src, 0})
-	 fh.Insert(int64(0), &datastructure.Distance{uint64(src), 0})
-	 distance[int(src)] = 0
+func Dijkstra(graph *flowgraph.Graph, src, dst flowgraph.NodeID, visiteCount uint32) ([]int64, []flowgraph.NodeID) {
+	distance := make([]int64, graph.NextID)
+	parent := make([]flowgraph.NodeID, graph.NextID)
+	//pq := make(datastructure.BinaryMinHeap, 0)
+	fh := datastructure.NewFibHeap()
+	for i := 1; i < len(parent); i++ {
+		distance[i] = math.MaxInt64
+		parent[i] = 0
+	}
+	//heap.Init(&pq)
+	//heap.Push(&pq, &datastructure.Distance{src, 0})
+	fh.Insert(int64(0), &datastructure.Distance{uint64(src), 0})
+	distance[int(src)] = 0
 
-	 //for pq.Len() > 0 {
-	 for fh.Len() > 0 {
-	 	//current := heap.Pop(&pq).(*datastructure.Distance)
-	 	current := fh.ExtractMin().Value.(*datastructure.Distance)
-	 	currentNode := graph.Node(flowgraph.NodeID(current.NodeId))
-	 	currentNode.Visited = visiteCount
+	//for pq.Len() > 0 {
+	for fh.Len() > 0 {
+		//current := heap.Pop(&pq).(*datastructure.Distance)
+		current := fh.ExtractMin().Value.(*datastructure.Distance)
+		currentNode := graph.Node(flowgraph.NodeID(current.NodeId))
+		currentNode.Visited = visiteCount
 
-	 	if flowgraph.NodeID(current.NodeId) == dst {
-	 		return distance, parent
+		if flowgraph.NodeID(current.NodeId) == dst {
+			return distance, parent
 		}
 
-	 	for nextId, arc := range currentNode.OutgoingArcMap {
-	 		nextNode := graph.Node(nextId)
-	 		if nextNode.Visited < visiteCount && arc.CapUpperBound > 0 {
-	 			arcCost := arc.Cost - currentNode.Potential + nextNode.Potential
-	 			updatedCost := current.Distance + arcCost
-	 			if updatedCost < distance[int(nextId)] {
+		for nextId, arc := range currentNode.OutgoingArcMap {
+			nextNode := graph.Node(nextId)
+			if nextNode.Visited < visiteCount && arc.CapUpperBound > 0 {
+				arcCost := arc.Cost - currentNode.Potential + nextNode.Potential
+				updatedCost := current.Distance + arcCost
+				if updatedCost < distance[int(nextId)] {
 					distance[int(nextId)] = updatedCost
 					parent[int(nextId)] = flowgraph.NodeID(current.NodeId)
 					//heap.Push(&pq, &datastructure.Distance{nextId, updatedCost})
@@ -86,8 +86,7 @@ import (
 				}
 			}
 		}
-	 }
+	}
 
-	 return distance, parent
- }
-
+	return distance, parent
+}

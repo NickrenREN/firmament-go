@@ -106,12 +106,11 @@ func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
 	return incrementalGraph
 }
 
-
 func CopyGraph(graph *Graph, modify bool) *Graph {
 	fg := &Graph{
-		ArcSet:  make(map[*Arc]struct{}),
-		NodeMap: make(map[NodeID]*Node),
-		TaskSet: make(map[*Node]struct{}),
+		ArcSet:      make(map[*Arc]struct{}),
+		NodeMap:     make(map[NodeID]*Node),
+		TaskSet:     make(map[*Node]struct{}),
 		ResourceSet: make(map[*Node]struct{}),
 	}
 	fg.SinkID = graph.SinkID
@@ -136,13 +135,13 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 			ID:             id,
 			IncomingArcMap: make(map[NodeID]*Arc),
 			OutgoingArcMap: make(map[NodeID]*Arc),
-			Visited: val.Visited,
-			Type: val.Type,
-			Excess: val.Excess,
-			Potential: val.Potential,
+			Visited:        val.Visited,
+			Type:           val.Type,
+			Excess:         val.Excess,
+			Potential:      val.Potential,
+			JobID:          val.JobID,
 		}
 		fg.NodeMap[id] = node
-
 
 	}
 
@@ -202,13 +201,14 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 
 func DFSDeleteNodeFromOriginGraph(graph *Graph, nodeToDelete *Node, visitCount uint32) {
 	outArc := nodeToDelete.GetRandomArc()
+	request := outArc.CapUpperBound
 	deque := datastructure.NewDeque(5)
 	deque.PushEnd(nodeToDelete)
 
 	for !deque.IsEmpty() {
 		current := deque.PopEnd().(*Node)
 		for _, arc := range current.OutgoingArcMap {
-			arc.CapUpperBound -= outArc.CapUpperBound
+			arc.CapUpperBound -= request
 			if arc.DstNode.Visited < visitCount {
 				arc.DstNode.Visited = visitCount
 				deque.PushEnd(arc.DstNode)
@@ -224,9 +224,9 @@ func DFSDeleteNodeFromOriginGraph(graph *Graph, nodeToDelete *Node, visitCount u
 // Must specify RandomizeNodeIDs flag
 func NewGraph(randomizeNodeIDs bool) *Graph {
 	fg := &Graph{
-		ArcSet:  make(map[*Arc]struct{}),
-		NodeMap: make(map[NodeID]*Node),
-		TaskSet: make(map[*Node]struct{}),
+		ArcSet:      make(map[*Arc]struct{}),
+		NodeMap:     make(map[NodeID]*Node),
+		TaskSet:     make(map[*Node]struct{}),
 		ResourceSet: make(map[*Node]struct{}),
 	}
 	fg.NextID = 1

@@ -17,6 +17,7 @@ import (
 
 // Set of tasks
 type TaskSet map[utility.TaskID]struct{}
+
 var timestart time.Time
 
 type scheduler struct {
@@ -483,7 +484,7 @@ func (sche *scheduler) RegisterResource(rtnd *proto.ResourceTopologyNodeDescript
 		curNode := toVisit.Pop().(*proto.ResourceTopologyNodeDescriptor)
 		// callback
 		curRD := curNode.ResourceDesc
-		if curRD.Type == proto.ResourceDescriptor_RESOURCE_PU {
+		if curRD.Type == proto.ResourceDescriptor_RESOURCE_MACHINE {
 			curRD.Schedulable = true
 			if curRD.State == proto.ResourceDescriptor_RESOURCE_UNKNOWN {
 				curRD.State = proto.ResourceDescriptor_RESOURCE_IDLE

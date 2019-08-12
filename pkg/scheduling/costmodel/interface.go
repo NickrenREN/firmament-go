@@ -71,8 +71,8 @@ func NewArcDescriptor(cost int64, capacity, minFlow uint64) ArcDescriptor {
 type RequestSlots int64
 
 type MachineResourceSlots struct {
-	CapacitySlots  RequestSlots
-	AvailableSlots RequestSlots
+	CapacitySlots RequestSlots
+	UsedSlots     RequestSlots
 }
 
 // TODO: add test
@@ -86,10 +86,10 @@ func NewRequestSlots(request *pb.ResourceVector) RequestSlots {
 	return RequestSlots(math.Ceil(slots))
 }
 
-func NewMachineResourceSlots(capacitySlots, availableSlots RequestSlots) MachineResourceSlots {
+func NewMachineResourceSlots(capacity, used RequestSlots) MachineResourceSlots {
 	return MachineResourceSlots{
-		CapacitySlots:  capacitySlots,
-		AvailableSlots: availableSlots,
+		CapacitySlots: capacity,
+		UsedSlots:     used,
 	}
 }
 
