@@ -12,8 +12,7 @@ def read_file(file_name):
         file.readline()
         node_num = int(node_num)
         arc_num = int(arc_num)
-
-        label = [0] * node_num
+        label = [""] * arc_num
         source = [0] * arc_num
         target = [0] * arc_num
         value = [0] * arc_num
@@ -21,6 +20,7 @@ def read_file(file_name):
         for _ in range(node_num):
             c = file.readline()
             n = file.readline()
+            print(c, n)
             cc = c.split(" ")
             nn = n.split(" ")
             name = str(cc[2])
@@ -30,28 +30,11 @@ def read_file(file_name):
         print(x)
         for i in range(arc_num):
             a = file.readline()
-            _, start, end, _, capacity, cost = a.split(" ")
-            source[i], target[i], value[i], comment[i] = int(start) - 1, int(end) - 1, int(capacity), int(cost)
-        while True:
-            x = file.readline()
-            print(x)
-            if x == "":
-                break
-            if x[0] == "c":
-                continue
             try:
-                _, start, end, _, capacity, cost = x.split(" ")
-                # source[i], target[i], value[i], comment[i] = int(start)-1, int(end)-1, int(capacity), int(cost)
-                source.append(int(start) - 1)
-                target.append(int(end) - 1)
-                value.append(int(capacity))
-                comment.append(int(cost))
+                _, start, end, _, capacity, cost = a.split(" ")
+                source[i], target[i], value[i], comment[i] = int(start) - 1, int(end) - 1, int(capacity), int(cost)
             except:
                 break
-        print(source)
-        print(target)
-        file.close()
-
     colors = ["blue"] * len(label)
     ct = Counter(source)
     for idx, name in enumerate(label):
@@ -61,9 +44,9 @@ def read_file(file_name):
             if ct[idx] == 1:
                 colors[idx] = "red"
         elif str(name).startswith("UN"):
-            colors[idx]="black"
+            colors[idx] = "black"
         elif str(name).startswith("SIN"):
-            colors[idx]="pink"
+            colors[idx] = "pink"
 
     fig = go.Figure(data=[go.Sankey(
         node=dict(
