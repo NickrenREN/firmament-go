@@ -207,7 +207,6 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 	}
 	hist := histogram.Hist(20, costArr)
 	histogram.Fprint(os.Stdout, hist, histogram.Linear(5))
-
 	fg.UnusedIDs = queue.NewFIFO()
 
 	// TODO might rethink about the implementation here
@@ -225,7 +224,7 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 			}
 		}
 	}
-
+	fg.UnusedIDs = queue.NewFIFO()
 	return fg
 }
 

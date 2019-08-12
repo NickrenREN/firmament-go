@@ -135,7 +135,7 @@ var _ = Describe("Firmametservice", func() {
 		Context(" start adding tasks", func() {
 			It("add 4 tasks", func() {
 				for i := 1; i <= 4; i++ {
-					addJobs(i, 32, 11)
+					addJobs(i, 48, 11)
 				}
 			})
 		})
