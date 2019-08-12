@@ -288,6 +288,13 @@ func (s *scheduler) unbindTaskFromResource(td *proto.TaskDescriptor, rID utility
 	if len(rd.CurrentRunningTasks) == 0 {
 		rd.State = proto.ResourceDescriptor_RESOURCE_IDLE
 	}
+	// We need remove task from rd's running tasks because we need gather resource usage
+	for index, uid := range rd.CurrentRunningTasks {
+		if uid == td.Uid {
+			rd.CurrentRunningTasks = utility.RemoveIndex(rd.CurrentRunningTasks, index)
+			break
+		}
+	}
 	// Remove the task from the resource bindings, return false if not found in the mappings
 	if _, ok := s.TaskBindings[taskID]; !ok {
 		return false
@@ -337,6 +344,7 @@ func (sche *scheduler) HandleTaskCompletion(td *proto.TaskDescriptor, report *pr
 	// Otherwise, we need to remove nodes, etc.
 	if len(td.DelegatedFrom) == 0 && taskInGraph {
 		nodeId := sche.graphManager.TaskCompleted(utility.TaskID(td.Uid))
+		delete(sche.taskMappings, nodeId)
 		sche.tasksCompletedDuringSloverRun[uint64(nodeId)] = struct{}{}
 	}
 }

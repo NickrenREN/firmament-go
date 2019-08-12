@@ -368,7 +368,7 @@ func (gm *graphManager) TaskCompleted(id utility.TaskID) flowgraph.NodeID {
 
 	delete(gm.taskToRunningArc, id)
 	nodeID := gm.removeTaskNode(taskNode)
-
+	gm.costModeler.RemoveTask(id)
 	// NOTE: We do not remove the task from the cost_model because
 	// HandleTaskFinalReport still needs to get the task's  equivalence classes.
 	return nodeID
@@ -1331,6 +1331,8 @@ func (gm *graphManager) updateTaskToResArcs(taskNode *flowgraph.Node, nodeQueue 
 			// the arc is updated somewhere else. Moreover, the cost of running
 			// arcs is returned by TaskContinuationCost.
 			gm.cm.ChangeArcCost(prefResArc, arcDescriptor.Cost, dimacs.ChgArcTaskToRes, "UpdateTaskToResArcs")
+			// Also need change capacity from task to resource
+			prefResArc.CapUpperBound = arcDescriptor.Capacity
 		}
 
 		if _, ok := markedNodes[prefResNode.ID]; !ok {

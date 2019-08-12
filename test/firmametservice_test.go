@@ -30,6 +30,11 @@ var _ = Describe("Firmametservice", func() {
 		Expect(err).Should(BeNil())
 		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
 	}
+	var taskCompleted = func(id uint64) {
+		response, err := ss.TaskCompleted(context.Background(), &proto.TaskUID{TaskUid: id})
+		Expect(err).Should(BeNil())
+		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_COMPLETED_OK))
+	}
 	var schedule = func(b Benchmarker) {
 		runtime := b.Time("runtime", func() {
 			sq := &proto.ScheduleRequest{}
@@ -156,7 +161,18 @@ var _ = Describe("Firmametservice", func() {
 				schedule(b)
 			}, 1)
 		})
-
+		Context(" notify task completed", func() {
+			It(" notify 4 tasks completed", func() {
+				for i := 1101; i <= 1104; i++ {
+					taskCompleted(uint64(i))
+				}
+			})
+		})
+		Context(" start scheduling again", func() {
+			Measure("schedule above 4 tasks", func(b Benchmarker) {
+				schedule(b)
+			}, 1)
+		})
 	})
 })
 
