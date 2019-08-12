@@ -174,6 +174,8 @@ func ExamCostModel(graph *flowgraph.Graph, tm map[flowgraph.NodeID]flowgraph.Nod
 
 	var totalTaskRequest uint64 = 0
 	for taskId, machineId := range tm {
+		taskId = graph.OriginalIdToCopyIdMap[taskId]
+		machineId = graph.OriginalIdToCopyIdMap[machineId]
 		srcNode := graph.Node(taskId)
 		dstNode := graph.Node(machineId)
 		totalTaskRequest += uint64(srcNode.Excess)

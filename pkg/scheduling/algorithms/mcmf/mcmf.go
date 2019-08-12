@@ -10,7 +10,7 @@ func SuccessiveShortestPathWithDEP(graph *flowgraph.Graph, src, dst flowgraph.No
 	var maxFlow uint64
 	var minCost int64
 
-	distance, parent := DEsopoPape(graph, src, dst)
+	distance, parent := DEsopoPapeWithSlice(graph, src, dst)
 	for distance[dst] != math.MaxInt64 {
 		minFlow := retrieveMinflow(graph, parent, dst)
 
@@ -30,7 +30,7 @@ func SuccessiveShortestPathWithDEP(graph *flowgraph.Graph, src, dst flowgraph.No
 			}
 			child = father
 		}
-		distance, parent = DEsopoPape(graph, src, dst)
+		distance, parent = DEsopoPapeWithSlice(graph, src, dst)
 	}
 
 	return maxFlow, minCost
@@ -58,7 +58,7 @@ func SuccessiveShortestPathWithDijkstra(graph *flowgraph.Graph, src, dst flowgra
 	var minCost int64
 	var visitCount uint32 = 1
 
-	distance, parent := Dijkstra(graph, src, dst, visitCount)
+	distance, parent := DijkstraWithSlice(graph, src, dst, visitCount)
 	for distance[dst] != math.MaxInt64 {
 		minFlow, pathCost := retrieveMinflowAndPathCost(graph, parent, dst)
 
@@ -80,13 +80,13 @@ func SuccessiveShortestPathWithDijkstra(graph *flowgraph.Graph, src, dst flowgra
 		}
 		for id, node := range graph.NodeMap {
 			if node.Visited == visitCount {
-				node.Potential -= distance[int(id)]
+				node.Potential -= distance[id]
 			} else {
-				node.Potential -= distance[int(dst)]
+				node.Potential -= distance[dst]
 			}
 		}
 		visitCount++
-		distance, parent = Dijkstra(graph, src, dst, visitCount)
+		distance, parent = DijkstraWithSlice(graph, src, dst, visitCount)
 	}
 
 	return maxFlow, minCost

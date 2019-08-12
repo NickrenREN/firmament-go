@@ -2,7 +2,6 @@ package mcmf
 
 import (
 	"fmt"
-	"math/rand"
 	"nickren/firmament-go/pkg/scheduling/algorithms/utils"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
 	"testing"
@@ -27,7 +26,7 @@ func generateRandomGraph(taskNum, machineNum, request, machineCap int) *flowgrap
 	}
 	for i := 2; i <= 1 + taskNum; i++ {
 		for j := 2 + taskNum; j < taskNum + machineNum + 2; j++ {
-			graph.AddArcWithCapAndCost(flowgraph.NodeID(i), flowgraph.NodeID(j), uint64(request), int64(rand.Intn(100) + 1))
+			graph.AddArcWithCapAndCost(flowgraph.NodeID(i), flowgraph.NodeID(j), uint64(request), 5)
 		}
 	}
 
@@ -108,8 +107,8 @@ func generateGraphWithCostAndCapacity() *flowgraph.Graph {
 }
 
 func TestBenchSuccessiveShortestPathWithDijkstra(b *testing.T) {
-	graph := generateRandomGraph(5000, 1000, 5, 500)
-	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 6002)
+	graph := generateRandomGraph(5000, 5000, 5, 100)
+	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 10002)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 }
 
@@ -188,9 +187,9 @@ func TestOptimizedRandomGraph(t *testing.T) {
 }
 
 func TestOptimizedRandomGraphWithDijkstra(t *testing.T) {
-	graph := genetaeRandomOptimizedGraph(100000, 10000, 5, 100)
+	graph := genetaeRandomOptimizedGraph(100000, 5000, 5, 100)
 	//g1 := flowgraph.CopyGraph(graph)
-	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 110002)
+	maxFlow, minCost := SuccessiveShortestPathWithDijkstra(graph, 1, 105002)
 	fmt.Printf("maxflow %v, mincost %v\n", maxFlow, minCost)
 
 	//maxFlow, minCost = SuccessiveShortestPathWithDijkstra(g1, 1, 20002)
