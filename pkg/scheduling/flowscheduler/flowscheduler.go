@@ -330,7 +330,6 @@ func (sche *scheduler) HandleTaskCompletion(td *proto.TaskDescriptor, report *pr
 		// do nothing here, add later if needed
 	}
 	// Set task state as completed
-	td.State = proto.TaskDescriptor_COMPLETED
 
 	taskInGraph := true
 	if td.State == proto.TaskDescriptor_FAILED || td.State == proto.TaskDescriptor_ABORTED {
@@ -338,14 +337,15 @@ func (sche *scheduler) HandleTaskCompletion(td *proto.TaskDescriptor, report *pr
 		// removed from the flow network.
 		taskInGraph = false
 	}
+	td.State = proto.TaskDescriptor_COMPLETED
 
 	// We don't need to do any flow graph stuff for delegated tasks as
 	// they are not currently represented in the flow graph.
 	// Otherwise, we need to remove nodes, etc.
 	if len(td.DelegatedFrom) == 0 && taskInGraph {
-		nodeId := sche.graphManager.TaskCompleted(utility.TaskID(td.Uid))
-		delete(sche.taskMappings, nodeId)
-		sche.tasksCompletedDuringSloverRun[uint64(nodeId)] = struct{}{}
+		nodeID := sche.graphManager.TaskCompleted(utility.TaskID(td.Uid))
+		delete(sche.taskMappings, nodeID)
+		sche.tasksCompletedDuringSloverRun[uint64(nodeID)] = struct{}{}
 	}
 }
 
@@ -421,8 +421,10 @@ func (sche *scheduler) HandleTaskFinalReport(report *proto.TaskFinalReport, td *
 func (sche *scheduler) HandleTaskRemoval(td *proto.TaskDescriptor) {
 	taskID := utility.TaskID(td.Uid)
 	// TODO: add TaskRemoved func for flow graph manager
-	sche.graphManager.TaskRemoved(taskID)
-
+	nodeID := sche.graphManager.TaskRemoved(taskID)
+	delete(sche.taskMappings, nodeID)
+	// TODO: check whether necessary
+	sche.tasksCompletedDuringSloverRun[uint64(nodeID)] = struct{}{}
 	// event scheduler related work
 	// wasRunning := false
 	if td.State == proto.TaskDescriptor_RUNNING {
@@ -438,8 +440,7 @@ func (sche *scheduler) HandleTaskRemoval(td *proto.TaskDescriptor) {
 }
 
 func (sche *scheduler) KillRunningTask(taskID utility.TaskID) {
-	sche.graphManager.TaskKilled(taskID)
-
+	//sche.graphManager.TaskKilled(taskID)
 	// event scheduler related work
 	td := sche.taskMap.FindPtrOrNull(taskID)
 	if td == nil {

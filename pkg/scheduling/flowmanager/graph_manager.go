@@ -379,8 +379,9 @@ func (gm *graphManager) TaskMigrated(id utility.TaskID, from, to utility.Resourc
 	gm.TaskScheduled(id, to)
 }
 
-func (gm *graphManager) TaskRemoved(id utility.TaskID) {
-	gm.removeTaskHelper(id)
+func (gm *graphManager) TaskRemoved(id utility.TaskID) flowgraph.NodeID {
+	nodeID := gm.removeTaskHelper(id)
+	return nodeID
 }
 
 func (gm *graphManager) TaskEvicted(taskID utility.TaskID, rid utility.ResourceID) {
@@ -413,22 +414,23 @@ func (gm *graphManager) TaskEvicted(taskID utility.TaskID, rid utility.ResourceI
 	// The task's arcs will be updated just before the next solver run.
 }
 
-func (gm *graphManager) removeTaskHelper(taskid utility.TaskID) {
+func (gm *graphManager) removeTaskHelper(taskid utility.TaskID) flowgraph.NodeID {
 	taskNode := gm.nodeForTaskID(taskid)
 	// task node may be nil if the task already completed
-	if taskNode != nil {
-		if gm.Preemption {
-			// When we pin the task we reduce the capacity from the unscheduled
-			// aggrator to the sink. Hence, we only have to reduce the capacity
-			// when we support preemption.
-			unschedAggNode := gm.unschedAggNodeForJobID(taskNode.JobID)
-			gm.updateUnscheduledAggNode(unschedAggNode, -1)
-		}
-
-		delete(gm.taskToRunningArc, taskid)
-		gm.removeTaskNode(taskNode)
-		gm.costModeler.RemoveTask(taskid)
+	if taskNode == nil {
+		log.Panicf("task node is nil in  TaskRemoved function")
 	}
+	if gm.Preemption {
+		// When we pin the task we reduce the capacity from the unscheduled
+		// aggrator to the sink. Hence, we only have to reduce the capacity
+		// when we support preemption.
+		unschedAggNode := gm.unschedAggNodeForJobID(taskNode.JobID)
+		gm.updateUnscheduledAggNode(unschedAggNode, -1)
+	}
+	delete(gm.taskToRunningArc, taskid)
+	nodeID := gm.removeTaskNode(taskNode)
+	gm.costModeler.RemoveTask(taskid)
+	return nodeID
 }
 
 func (gm *graphManager) TaskFailed(id utility.TaskID) {

@@ -58,7 +58,7 @@ type GraphManager interface {
 	TaskEvicted(id utility.TaskID, rid utility.ResourceID)
 	TaskFailed(id utility.TaskID)
 	TaskKilled(id utility.TaskID)
-	TaskRemoved(id utility.TaskID)
+	TaskRemoved(id utility.TaskID) flowgraph.NodeID
 	TaskMigrated(id utility.TaskID, from, to utility.ResourceID)
 	TaskScheduled(id utility.TaskID, rid utility.ResourceID)
 

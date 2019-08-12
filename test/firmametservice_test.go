@@ -35,6 +35,18 @@ var _ = Describe("Firmametservice", func() {
 		Expect(err).Should(BeNil())
 		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_COMPLETED_OK))
 	}
+	var taskRemoved = func(id uint64) {
+		response, err := ss.TaskRemoved(context.Background(), &proto.TaskUID{TaskUid: id})
+		Expect(err).Should(BeNil())
+		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_REMOVED_OK))
+	}
+	var taskUpdate = func(id, core, jobID int) {
+		jdUid := strconv.FormatInt(int64(jobID), 10)
+		td := createMockTaskDescription(jdUid, uint64(jobID*100+id), core)
+		response, err := ss.TaskUpdated(context.Background(), td)
+		Expect(err).Should(BeNil())
+		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_UPDATED_OK))
+	}
 	var schedule = func(b Benchmarker) {
 		runtime := b.Time("runtime", func() {
 			sq := &proto.ScheduleRequest{}
@@ -140,7 +152,7 @@ var _ = Describe("Firmametservice", func() {
 		Context(" start adding tasks", func() {
 			It("add 4 tasks", func() {
 				for i := 1; i <= 4; i++ {
-					addJobs(i, 48, 11)
+					addJobs(i, 36, 11)
 				}
 			})
 		})
@@ -152,7 +164,7 @@ var _ = Describe("Firmametservice", func() {
 		Context(" start adding tasks again", func() {
 			It("add 4 tasks", func() {
 				for i := 1; i <= 4; i++ {
-					addJobs(i, 32, 22)
+					addJobs(i, 36, 22)
 				}
 			})
 		})
@@ -161,10 +173,24 @@ var _ = Describe("Firmametservice", func() {
 				schedule(b)
 			}, 1)
 		})
-		Context(" notify task completed", func() {
+		PContext(" notify task completed", func() {
 			It(" notify 4 tasks completed", func() {
 				for i := 1101; i <= 1104; i++ {
 					taskCompleted(uint64(i))
+				}
+			})
+		})
+		PContext(" notify task removed", func() {
+			It(" notify 4 tasks removed", func() {
+				for i := 1101; i <= 1104; i++ {
+					taskRemoved(uint64(i))
+				}
+			})
+		})
+		Context(" notify task update", func() {
+			It(" notify 4 tasks updated", func() {
+				for i := 1; i <= 4; i++ {
+					taskUpdate(i, 48, 11)
 				}
 			})
 		})
@@ -214,7 +240,6 @@ func createMockRTND(uid string, puUid string, core int) *proto.ResourceTopologyN
 		ParentId: uid,
 	}
 	puRtnd.ParentId = uid
-	//rtnd.Children = append(rtnd.Children, puRtnd)
 	return rtnd
 }
 

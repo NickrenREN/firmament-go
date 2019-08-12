@@ -12,7 +12,7 @@ def read_file(file_name):
         file.readline()
         node_num = int(node_num)
         arc_num = int(arc_num)
-        label = [""] * arc_num
+        label = [""] * 100
         source = [0] * arc_num
         target = [0] * arc_num
         value = [0] * arc_num
