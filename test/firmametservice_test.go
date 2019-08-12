@@ -30,7 +30,19 @@ var _ = Describe("Firmametservice", func() {
 		Expect(err).Should(BeNil())
 		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_SUBMITTED_OK))
 	}
-	Describe("Add Machine using firmament service", func() {
+	var schedule = func(b Benchmarker) {
+		runtime := b.Time("runtime", func() {
+			sq := &proto.ScheduleRequest{}
+			//deltas, err := ss.Schedule(context.Background(), sq)
+			/*for _, delta := range deltas.Deltas {
+				log.Printf("task:", delta.TaskId, " is scheduled to node:", delta.ResourceId)
+			}*/
+			_, err := ss.Schedule(context.Background(), sq)
+			Expect(err).Should(BeNil())
+		})
+		Expect(runtime.Seconds()).Should(BeNumerically("<", 600), "runtime must be short")
+	}
+	PDescribe("Add Machine using firmament service", func() {
 		Context("start test", func() {
 			It("example 1", func() {
 				addMachine(1, 16)
@@ -38,13 +50,13 @@ var _ = Describe("Firmametservice", func() {
 				addMachine(3, 48)
 				addMachine(4, 64)
 			})
-			PIt("example 1", func() {
+			PIt("example 2", func() {
 				for i := 1; i <= 1000; i++ {
-					if i % 4 == 0 {
+					if i%4 == 0 {
 						addMachine(int64(i), 32)
-					} else if i %4 == 1 {
+					} else if i%4 == 1 {
 						addMachine(int64(i), 64)
-					} else if i %4 == 2 {
+					} else if i%4 == 2 {
 						addMachine(int64(i), 96)
 					} else {
 						addMachine(int64(i), 128)
@@ -53,26 +65,25 @@ var _ = Describe("Firmametservice", func() {
 			})
 		})
 	})
-	Describe("Add Taks using firmament service", func() {
+	PDescribe("Add Tasks using firmament service", func() {
 		Context("start test", func() {
 			PIt("example job 1", func() {
-				By(" first job with 10slots and 10 tasks")
+				By(" first job with random 25 slots and 1000 tasks")
 				for id := 1; id <= 5000; id++ {
-					addJobs(id, rand.Intn(24) + 1, 11)
+					addJobs(id, rand.Intn(24)+1, 11)
 				}
 			})
-			PIt("example job 1", func() {
-				By(" first job with 10slots and 10 tasks")
+			PIt("example job 2", func() {
+				By(" first job with 10, 20, 30, 40 slots and 4000 tasks")
 				total := 0
-
 				for id := 1; id <= 4000; id++ {
-					if id % 4 == 0 {
+					if id%4 == 0 {
 						addJobs(id, 10, 11)
 						total += 10
-					} else if id % 4 == 1 {
+					} else if id%4 == 1 {
 						addJobs(id, 20, 11)
 						total += 20
-					} else if id % 4 == 2 {
+					} else if id%4 == 2 {
 						addJobs(id, 30, 11)
 						total += 30
 					} else {
@@ -83,7 +94,7 @@ var _ = Describe("Firmametservice", func() {
 
 				fmt.Printf("fuck you %v", total)
 			})
-			PIt("example job 2", func() {
+			PIt("example job 3", func() {
 				By(" first job with 10slots and 5 tasks")
 				for id := 1; id <= 10; id++ {
 					addJobs(id, 10, 11)
@@ -106,21 +117,46 @@ var _ = Describe("Firmametservice", func() {
 			})
 		})
 	})
-	Describe("Schedule after adding tasks and machines", func() {
+	PDescribe("Schedule after adding tasks and machines", func() {
 		Context("start test", func() {
 			Measure("measure schedule", func(b Benchmarker) {
-				runtime := b.Time("runtime", func() {
-					sq := &proto.ScheduleRequest{}
-					//deltas, err := ss.Schedule(context.Background(), sq)
-					/*for _, delta := range deltas.Deltas {
-						log.Printf("task:", delta.TaskId, " is scheduled to node:", delta.ResourceId)
-					}*/
-					_, err := ss.Schedule(context.Background(), sq)
-					Expect(err).Should(BeNil())
-				})
-				Expect(runtime.Seconds()).Should(BeNumerically("<", 600), "runtime must be short")
+				schedule(b)
 			}, 1)
 		})
+	})
+	Describe(" End to end test", func() {
+		Context("start adding machines", func() {
+			It("add 4 machines", func() {
+				for i := 1; i <= 4; i++ {
+					addMachine(int64(i), 64)
+				}
+			})
+		})
+		Context(" start adding tasks", func() {
+			It("add 4 tasks", func() {
+				for i := 1; i <= 4; i++ {
+					addJobs(i, 32, 11)
+				}
+			})
+		})
+		Context(" start scheduling", func() {
+			Measure("schedule above 4 tasks", func(b Benchmarker) {
+				schedule(b)
+			}, 1)
+		})
+		Context(" start adding tasks again", func() {
+			It("add 4 tasks", func() {
+				for i := 1; i <= 4; i++ {
+					addJobs(i, 32, 22)
+				}
+			})
+		})
+		Context(" start scheduling again", func() {
+			Measure("schedule above 4 tasks", func(b Benchmarker) {
+				schedule(b)
+			}, 1)
+		})
+
 	})
 })
 

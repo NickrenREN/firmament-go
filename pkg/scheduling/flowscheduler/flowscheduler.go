@@ -17,6 +17,7 @@ import (
 
 // Set of tasks
 type TaskSet map[utility.TaskID]struct{}
+
 var timestart time.Time
 
 type scheduler struct {
@@ -64,6 +65,7 @@ type scheduler struct {
 	solverRunCnt uint64
 
 	resourceRoots map[*proto.ResourceTopologyNodeDescriptor]struct{}
+	taskMappings  flowmanager.TaskMapping
 }
 
 func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root *proto.ResourceTopologyNodeDescriptor,
@@ -97,6 +99,7 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 
 		tasksCompletedDuringSloverRun: make(map[uint64]struct{}),
 		pusRemovedDuringSolverRun:     make(map[uint64]struct{}),
+		taskMappings:                  flowmanager.TaskMapping{},
 	}
 
 	// TODO: refactor max tasks per PU
@@ -483,7 +486,7 @@ func (sche *scheduler) RegisterResource(rtnd *proto.ResourceTopologyNodeDescript
 		curNode := toVisit.Pop().(*proto.ResourceTopologyNodeDescriptor)
 		// callback
 		curRD := curNode.ResourceDesc
-		if curRD.Type == proto.ResourceDescriptor_RESOURCE_PU {
+		if curRD.Type == proto.ResourceDescriptor_RESOURCE_MACHINE {
 			curRD.Schedulable = true
 			if curRD.State == proto.ResourceDescriptor_RESOURCE_UNKNOWN {
 				curRD.State = proto.ResourceDescriptor_RESOURCE_IDLE
@@ -610,15 +613,17 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	timeElapsed := time.Since(timestart)
 	fmt.Printf("construct graph took %v\n", timeElapsed)
 	// Run the flow solver! This is where all the juicy goodness happens :)
-	taskMappings := s.solver.MCMFSolve(s.graphManager.GraphChangeManager().Graph())
+	tm := s.solver.MCMFSolve(s.graphManager.GraphChangeManager().Graph())
 	s.solverRunCnt++
 	// firmament will populate max solve runtime and scheduler time stats
 	// and play all the simulation events that happened while the solver was running
 	// ignore here
+	for taskID, resourceID := range tm {
+		s.taskMappings[taskID] = resourceID
+	}
+	deltas := s.graphManager.SchedulingDeltasForPreemptedTasks(s.taskMappings, s.resourceMap)
 
-	deltas := s.graphManager.SchedulingDeltasForPreemptedTasks(taskMappings, s.resourceMap)
-
-	for taskID, resourceID := range taskMappings {
+	for taskID, resourceID := range s.taskMappings {
 		_, ok := s.tasksCompletedDuringSloverRun[uint64(taskID)]
 		if ok {
 			// Ignore the task because it has already completed while the solver
