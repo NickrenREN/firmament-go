@@ -33,8 +33,9 @@ type graphManager struct {
 	// True if the preferences of a running task should be updated before each scheduling round
 	UpdatePreferencesRunningTask bool
 	Preemption                   bool
-	MaxTasksPerPu                uint64
-	flowSchedulingSolver         string
+	// TODO: refactor, do not need pu
+	MaxTasksPerPu        uint64
+	flowSchedulingSolver string
 
 	cm          GraphChangeManager
 	sinkNode    *flowgraph.Node
@@ -205,10 +206,16 @@ func (gm *graphManager) NodeBindingToSchedulingDelta(tid, rid flowgraph.NodeID, 
 	if !taskNode.IsTaskNode() {
 		log.Panicf("unexpected non-task node %d\n", tid)
 	}
-	// Destination must be a PU node
+	// Destination must be a Machine node
 	resNode := gm.cm.Graph().Node(rid)
-	if resNode.Type != flowgraph.NodeTypePu {
-		log.Panicf("unexpected non-pu node %d\n", rid)
+	deltaType := pb.SchedulingDelta_NOOP
+	if resNode.Type == flowgraph.NodeTypeMachine {
+		deltaType = pb.SchedulingDelta_PLACE
+	} else if resNode.Type == flowgraph.NodeTypeJobAggregator {
+		deltaType = pb.SchedulingDelta_NOOP
+		return nil
+	} else {
+		log.Panicf("unexpected non-machine node and non- %d\n", rid)
 	}
 
 	task := taskNode.Task
@@ -226,7 +233,7 @@ func (gm *graphManager) NodeBindingToSchedulingDelta(tid, rid flowgraph.NodeID, 
 		// Place the task.
 		////log.Printf("flowmanager: place %v on %v", task.Uid, res.Uuid)
 		sd := &pb.SchedulingDelta{
-			Type:       pb.SchedulingDelta_PLACE,
+			Type:       deltaType,
 			TaskId:     task.Uid,
 			ResourceId: res.Uuid,
 		}
@@ -327,22 +334,12 @@ func (gm *graphManager) RemoveResourceTopology(rd *pb.ResourceDescriptor) []flow
 		log.Panic("gm/RemoveResourceTopology: resourceNode cannot be nil\n")
 	}
 	removedPUs := make([]flowgraph.NodeID, 0)
-	capDelta := int64(0)
 	// Delete the children nodes.
-	for _, arc := range rNode.OutgoingArcMap {
-		capDelta -= int64(arc.CapUpperBound)
-		if arc.DstNode.ResourceID != 0 {
-			removedPUs = append(removedPUs, gm.traverseAndRemoveTopology(arc.DstNode)...)
-		}
-	}
 	// Propagate the stats update up to the root resource.
-	gm.updateResourceStatsUpToRoot(rNode, capDelta, -int64(rNode.ResourceDescriptor.NumSlotsBelow), -int64(rNode.ResourceDescriptor.NumRunningTasksBelow))
+	gm.updateResourceStatsUpToRoot(rNode, 0, -int64(rNode.ResourceDescriptor.NumSlotsBelow), -int64(rNode.ResourceDescriptor.NumRunningTasksBelow))
 	// Delete the node.
-	if rNode.Type == flowgraph.NodeTypePu {
-		removedPUs = append(removedPUs, rNode.ID)
-	} else if rNode.Type == flowgraph.NodeTypeMachine {
-		gm.costModeler.RemoveMachine(rNode.ResourceID)
-	}
+	removedPUs = append(removedPUs, rNode.ID)
+	gm.costModeler.RemoveMachine(rNode.ResourceID)
 	gm.removeResourceNode(rNode)
 	return removedPUs
 }
@@ -361,7 +358,7 @@ func (gm *graphManager) TaskCompleted(id utility.TaskID) flowgraph.NodeID {
 
 	delete(gm.taskToRunningArc, id)
 	nodeID := gm.removeTaskNode(taskNode)
-
+	gm.costModeler.RemoveTask(id)
 	// NOTE: We do not remove the task from the cost_model because
 	// HandleTaskFinalReport still needs to get the task's  equivalence classes.
 	return nodeID
@@ -372,8 +369,9 @@ func (gm *graphManager) TaskMigrated(id utility.TaskID, from, to utility.Resourc
 	gm.TaskScheduled(id, to)
 }
 
-func (gm *graphManager) TaskRemoved(id utility.TaskID) {
-	gm.removeTaskHelper(id)
+func (gm *graphManager) TaskRemoved(id utility.TaskID) flowgraph.NodeID {
+	nodeID := gm.removeTaskHelper(id)
+	return nodeID
 }
 
 func (gm *graphManager) TaskEvicted(taskID utility.TaskID, rid utility.ResourceID) {
@@ -406,26 +404,28 @@ func (gm *graphManager) TaskEvicted(taskID utility.TaskID, rid utility.ResourceI
 	// The task's arcs will be updated just before the next solver run.
 }
 
-func (gm *graphManager) removeTaskHelper(taskid utility.TaskID) {
+func (gm *graphManager) removeTaskHelper(taskid utility.TaskID) flowgraph.NodeID {
 	taskNode := gm.nodeForTaskID(taskid)
 	// task node may be nil if the task already completed
-	if taskNode != nil {
-		if gm.Preemption {
-			// When we pin the task we reduce the capacity from the unscheduled
-			// aggrator to the sink. Hence, we only have to reduce the capacity
-			// when we support preemption.
-			unschedAggNode := gm.unschedAggNodeForJobID(taskNode.JobID)
-			gm.updateUnscheduledAggNode(unschedAggNode, -1)
-		}
-
-		delete(gm.taskToRunningArc, taskid)
-		gm.removeTaskNode(taskNode)
-		gm.costModeler.RemoveTask(taskid)
+	if taskNode == nil {
+		log.Panicf("task node is nil in  TaskRemoved function")
 	}
+	if gm.Preemption {
+		// When we pin the task we reduce the capacity from the unscheduled
+		// aggrator to the sink. Hence, we only have to reduce the capacity
+		// when we support preemption.
+		unschedAggNode := gm.unschedAggNodeForJobID(taskNode.JobID)
+		gm.updateUnscheduledAggNode(unschedAggNode, -1)
+	}
+	delete(gm.taskToRunningArc, taskid)
+	nodeID := gm.removeTaskNode(taskNode)
+	gm.costModeler.RemoveTask(taskid)
+	return nodeID
 }
 
-func (gm *graphManager) TaskFailed(id utility.TaskID) {
-	gm.removeTaskHelper(id)
+func (gm *graphManager) TaskFailed(id utility.TaskID) flowgraph.NodeID {
+	nodeID := gm.removeTaskHelper(id)
+	return nodeID
 }
 
 func (gm *graphManager) TaskKilled(id utility.TaskID) {
@@ -556,6 +556,7 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 		addedNewResNode = true
 		resourceNode = gm.addResourceNode(rd)
 		if resourceNode.Type == flowgraph.NodeTypePu {
+			// TODO: delete
 			gm.updateResToSinkArc(resourceNode)
 			if rd.NumSlotsBelow == 0 {
 				rd.NumSlotsBelow = uint64(gm.MaxTasksPerPu)
@@ -567,12 +568,13 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 			if resourceNode.Type == flowgraph.NodeTypeMachine {
 				// TODO: gm.traceGenerator.AddMachine(rd);
 				gm.costModeler.AddMachine(rtnd)
+				gm.updateResToSinkArc(resourceNode)
+
 			}
-			rd.NumSlotsBelow = 0
 			rd.NumRunningTasksBelow = 0
 		}
 	} else {
-		rd.NumSlotsBelow = 0
+		rd.NumSlotsBelow = gm.costModeler.LeafResourceNodeToSink(rID).Capacity
 		rd.NumRunningTasksBelow = 0
 		// NOTE: This comment seems to be an issue with their coordinator implementation
 		// maybe not relevant to our purposes.
@@ -586,16 +588,19 @@ func (gm *graphManager) addResourceTopologyDFS(rtnd *pb.ResourceTopologyNodeDesc
 	}
 
 	gm.visitTopologyChildren(rtnd)
-	// If we reach the root
-	if rtnd.ParentId == "" {
-		if rd.Type != pb.ResourceDescriptor_RESOURCE_COORDINATOR {
-			log.Panicf("A resource node that is not a coordinator must have a parent")
-		}
-		return
-	}
+	//if rtnd.ParentId == "" {
+	//if rd.Type != pb.ResourceDescriptor_RESOURCE_MACHINE {
+	//log.Panicf("A resource node that is not a coordinator must have a parent")
+	//}
+	//return
+	//}
 
 	if addedNewResNode {
 		// Connect the node to the parent
+		// TODO: refactor when add vm resource
+		if rtnd.ParentId == "" {
+			return
+		}
 		pID := utility.MustResourceIDFromString(rtnd.ParentId)
 		parentNode := gm.nodeForResourceID(pID)
 		if parentNode == nil {
@@ -622,7 +627,7 @@ func (gm *graphManager) addTaskNode(jobID utility.JobID, td *pb.TaskDescriptor) 
 	if td == nil {
 		log.Panicf("td is nil in addTaskNode function")
 	}
-	// TODO:
+	// TODO: add arc
 	// trace.traceGenerator.TaskSubmitted(td)
 	gm.costModeler.AddTask(utility.TaskID(td.Uid))
 	taskNode := gm.cm.AddNode(flowgraph.NodeTypeUnscheduledTask, 1, dimacs.AddTaskNode, "AddTaskNode")
@@ -630,7 +635,7 @@ func (gm *graphManager) addTaskNode(jobID utility.JobID, td *pb.TaskDescriptor) 
 	taskNode.Task = td
 	taskNode.JobID = jobID
 	gm.sinkNode.Excess--
-	// Insert mapping tast to node, must not already have mapping
+	// Insert mapping task to node, must not already have mapping
 	_, ok := gm.taskToNode[utility.TaskID(td.Uid)]
 	if ok {
 		log.Panicf("gm:addTaskNode Mapping for taskID:%v to node already present\n", td.Uid)
@@ -643,6 +648,7 @@ func (gm *graphManager) addUnscheduledAggNode(jobID utility.JobID) *flowgraph.No
 	comment := "UNSCHED_AGG_for_" + strconv.FormatInt(int64(jobID), 10)
 	unschedAggNode := gm.cm.AddNode(flowgraph.NodeTypeJobAggregator, 0, dimacs.AddUnschedJobNode, comment)
 	// Insert mapping jobUnscheduled to node, must not already have mapping
+	unschedAggNode.JobID = jobID
 	_, ok := gm.jobUnschedToNode[jobID]
 	if ok {
 		log.Panicf("gm:addUnscheduledAggNode Mapping for unscheduled jobID:%v to node already present\n", jobID)
@@ -666,7 +672,7 @@ func (gm *graphManager) capacityFromResNodeToParent(rd *pb.ResourceDescriptor) u
 // from the cost model.
 func (gm *graphManager) pinTaskToNode(taskNode, resourceNode *flowgraph.Node) {
 	addedRunningArc := false
-	lowBoundCapacity := uint64(1)
+	lowBoundCapacity := uint64(0)
 	// TODO: Address the lower capacity issue on custom solvers, see original
 
 	for dstNodeID, arc := range taskNode.OutgoingArcMap {
@@ -684,7 +690,7 @@ func (gm *graphManager) pinTaskToNode(taskNode, resourceNode *flowgraph.Node) {
 		arcDescriptor := gm.costModeler.TaskContinuation(utility.TaskID(taskNode.Task.Uid))
 		//newCost := int64(gm.costModeler.TaskContinuationCost(utility.TaskID(taskNode.Task.Uid)))
 		arc.Type = flowgraph.ArcTypeRunning
-		gm.cm.ChangeArc(arc, lowBoundCapacity, 1, arcDescriptor.Cost, dimacs.ChgArcRunningTask, "PinTaskToNode: transform to running arc")
+		gm.cm.ChangeArc(arc, lowBoundCapacity, arcDescriptor.Capacity, arcDescriptor.Cost, dimacs.ChgArcRunningTask, "PinTaskToNode: transform to running arc")
 
 		// Insert mapping for Task to RunningArc, must not already exist
 		_, ok := gm.taskToRunningArc[utility.TaskID(taskNode.Task.Uid)]
@@ -692,15 +698,16 @@ func (gm *graphManager) pinTaskToNode(taskNode, resourceNode *flowgraph.Node) {
 			log.Panicf("gm:pintTaskToNode Mapping for taskID:%v to running arc already present\n", taskNode.Task.Uid)
 		}
 		gm.taskToRunningArc[utility.TaskID(taskNode.Task.Uid)] = arc
+		// TODO: Do not need update capacity that unschedule aggnode to sink
+		// Decrement capacity from unsched agg node to sink.
+		//gm.updateUnscheduledAggNode(gm.unschedAggNodeForJobID(taskNode.JobID), -1)
 	}
 
-	// Decrement capacity from unsched agg node to sink.
-	gm.updateUnscheduledAggNode(gm.unschedAggNodeForJobID(taskNode.JobID), -1)
 	if !addedRunningArc {
 		// Add a single arc from the task to the resource node
 		arcDescriptor := gm.costModeler.TaskContinuation(utility.TaskID(taskNode.Task.Uid))
 		// newCost := int64(gm.costModeler.TaskContinuationCost(utility.TaskID(taskNode.Task.Uid)))
-		newArc := gm.cm.AddArc(taskNode, resourceNode, lowBoundCapacity, 1, arcDescriptor.Cost, flowgraph.ArcTypeRunning, dimacs.AddArcRunningTask, "PinTaskToNode: add running arc")
+		newArc := gm.cm.AddArc(taskNode, resourceNode, lowBoundCapacity, arcDescriptor.Capacity, arcDescriptor.Cost, flowgraph.ArcTypeRunning, dimacs.AddArcRunningTask, "PinTaskToNode: add running arc")
 
 		// Insert mapping for Task to RunningArc, must not already exist
 		_, ok := gm.taskToRunningArc[utility.TaskID(taskNode.Task.Uid)]
@@ -1068,6 +1075,7 @@ func (gm *graphManager) updateResourceNode(resNode *flowgraph.Node, nodeQueue qu
 
 // Update resource related stats (e.g., arc capacities, num slots,
 // num running tasks) on every arc/node up to the root resource.
+// TODO: fix when ad vm1 vm2
 func (gm *graphManager) updateResourceStatsUpToRoot(currNode *flowgraph.Node, capDelta, slotsDelta, runningTasksDelta int64) {
 	if currNode == nil {
 		log.Panicf("current node is nil in updateResourceStatsUpToRoot function")
@@ -1154,8 +1162,8 @@ func (gm *graphManager) updateResOutgoingArcs(resNode *flowgraph.Node, nodeQueue
 // to be a PU.
 // resourceNode is the resource node for which to update its arc to the sink
 func (gm *graphManager) updateResToSinkArc(resNode *flowgraph.Node) {
-	if resNode.Type != flowgraph.NodeTypePu {
-		log.Panicf("gm:updateResToSinkArc: Updating an arc from a non-PU to the sink")
+	if resNode.Type != flowgraph.NodeTypeMachine {
+		log.Panicf("gm:updateResToSinkArc: Updating an arc from a non-Machine to the sink")
 	}
 
 	if gm.sinkNode == nil {
@@ -1316,6 +1324,8 @@ func (gm *graphManager) updateTaskToResArcs(taskNode *flowgraph.Node, nodeQueue 
 			// the arc is updated somewhere else. Moreover, the cost of running
 			// arcs is returned by TaskContinuationCost.
 			gm.cm.ChangeArcCost(prefResArc, arcDescriptor.Cost, dimacs.ChgArcTaskToRes, "UpdateTaskToResArcs")
+			// Also need change capacity from task to resource
+			prefResArc.CapUpperBound = arcDescriptor.Capacity
 		}
 
 		if _, ok := markedNodes[prefResNode.ID]; !ok {
@@ -1361,11 +1371,12 @@ func (gm *graphManager) updateUnscheduledAggNode(unschedAggNode *flowgraph.Node,
 		log.Panicf("unschedAggNode is nil in updateUnscheduledAggNode function")
 	}
 	unschedAggSinkArc := gm.cm.Graph().GetArc(unschedAggNode, gm.sinkNode)
+	//fmt.Printf("debug job id %v; %d", unschedAggNode, unschedAggNode.JobID)
 	arcDescriptor := gm.costModeler.UnscheduledAggToSink(unschedAggNode.JobID)
+	//TODO : debug
 	// newCost := int64(gm.costModeler.UnscheduledAggToSinkCost(unschedAggNode.JobID))
 	if unschedAggSinkArc != nil {
-		newCapacity := uint64(int64(unschedAggSinkArc.CapUpperBound) + capDelta)
-		gm.cm.ChangeArc(unschedAggSinkArc, arcDescriptor.MinFlow, newCapacity, arcDescriptor.Cost, dimacs.ChgArcFromUnsched, "UpdateUnscheduledAggNode")
+		gm.cm.ChangeArc(unschedAggSinkArc, arcDescriptor.MinFlow, arcDescriptor.Capacity, arcDescriptor.Cost, dimacs.ChgArcFromUnsched, "UpdateUnscheduledAggNode")
 		return
 	}
 
@@ -1373,7 +1384,7 @@ func (gm *graphManager) updateUnscheduledAggNode(unschedAggNode *flowgraph.Node,
 		log.Panicf("gb/updateUnscheduledAggNode: capDelta:%v must be >= 1\n", capDelta)
 	}
 
-	gm.cm.AddArc(unschedAggNode, gm.sinkNode, arcDescriptor.MinFlow, uint64(capDelta), arcDescriptor.Cost, flowgraph.ArcTypeOther, dimacs.AddArcFromUnsched, "UpdateUnscheduledAggNode")
+	gm.cm.AddArc(unschedAggNode, gm.sinkNode, arcDescriptor.MinFlow, arcDescriptor.Capacity, arcDescriptor.Cost, flowgraph.ArcTypeOther, dimacs.AddArcFromUnsched, "UpdateUnscheduledAggNode")
 }
 
 func (gm *graphManager) visitTopologyChildren(rtnd *pb.ResourceTopologyNodeDescriptor) {

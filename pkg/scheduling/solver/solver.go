@@ -19,8 +19,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"nickren/firmament-go/pkg/scheduling/algorithms/mcmf"
+	"nickren/firmament-go/pkg/scheduling/algorithms/utils"
 	"os"
 	"os/exec"
+	"time"
 
 	"nickren/firmament-go/pkg/scheduling/dimacs"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
@@ -35,6 +38,8 @@ var (
 
 type Solver interface {
 	Solve() flowmanager.TaskMapping
+	MCMFSolve(graph *flowgraph.Graph) flowmanager.TaskMapping
+	WriteGraph(file string)
 }
 
 type flowlesslySolver struct {
@@ -54,9 +59,58 @@ func NewSolver(gm flowmanager.GraphManager) Solver {
 	}
 }
 
+
 // NOTE: assume we don't have debug flag
 // NOTE: assume we only do incremental flow
 // Note: assume Solve() is called iteratively and sequentially without concurrency.
+func (fs *flowlesslySolver) MCMFSolve(graph *flowgraph.Graph) flowmanager.TaskMapping {
+	fs.WriteGraph("mcmf_before")
+	start := time.Now()
+	copyGraph := flowgraph.ModifyGraphFromTotalToIncremental(graph)
+	elapsed := time.Since(start)
+	fmt.Printf("copy graph took %s\n", elapsed)
+	start = time.Now()
+	maxFlow, minCost := mcmf.SuccessiveShortestPathWithDijkstra(copyGraph, copyGraph.SourceID, copyGraph.SinkID)
+	elapsed = time.Since(start)
+	fmt.Printf("mcmf took %s\n", elapsed)
+	fmt.Printf("maxFlow %v, minCost %v\n", maxFlow, minCost)
+
+	tm := make(map[flowgraph.NodeID]flowgraph.NodeID)
+	start = time.Now()
+	scheduleResult := utils.ExtractScheduleResult(copyGraph, copyGraph.SourceID)
+	elapsed = time.Since(start)
+	fmt.Printf("extract result took %s\n", elapsed)
+	var totalFlow uint64 = 0
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			totalFlow += flow
+		} else {
+			if mapping.ResourceId == 0 {
+			}
+		}
+	}
+	fmt.Printf("before the repair, total flow is %v\n", totalFlow)
+	start = time.Now()
+	scheduleResult, repairCount := utils.GreedyRepairFlow(copyGraph, scheduleResult, copyGraph.SinkID)
+	elapsed = time.Since(start)
+	fmt.Printf("greedy repair took %s\n", elapsed)
+	fmt.Printf("After the greedy repair, %v tasks got repaired\n", repairCount)
+	totalFlow = 0
+	for mapping, flow := range scheduleResult {
+		if flow != 0 {
+			totalFlow += flow
+			tm[copyGraph.CopyIdToOriginalIdMap[mapping.TaskId]] = copyGraph.CopyIdToOriginalIdMap[mapping.ResourceId]
+		} else {
+			if mapping.ResourceId == 0 {
+			}
+		}
+	}
+	fmt.Printf("after the repair, total flow is %v, length of tm is %v\n", totalFlow, len(tm))
+
+	utils.ExamCostModel(copyGraph, tm)
+	return tm
+}
+
 func (fs *flowlesslySolver) Solve() flowmanager.TaskMapping {
 	// Note: combine all the first time logic into this once function.
 	// This is different from original cpp code.
@@ -71,7 +125,7 @@ func (fs *flowlesslySolver) Solve() flowmanager.TaskMapping {
 		// (For example, if it outputs lots of warnings on STDERR.)
 
 		// go fs.writeGraph()
-		fs.writeGraph()
+		fs.WriteGraph("")
 
 		// remove it.. once we run real sollver.
 		//os.Exit(1)
@@ -108,8 +162,11 @@ func (fs *flowlesslySolver) startSolver() {
 	}
 }
 
-func (fs *flowlesslySolver) writeGraph() {
+func (fs *flowlesslySolver) WriteGraph(file string) {
 	// TODO: make sure proper locking on graph, manager
+	outputFile, _ := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	defer outputFile.Close()
+	fs.toSolver = outputFile
 	dimacs.Export(fs.gm.GraphChangeManager().Graph(), fs.toSolver)
 	//dimacs.Export(fs.gm.GraphChangeManager().Graph(), fs.toConsole)
 	fs.gm.GraphChangeManager().ResetChanges()

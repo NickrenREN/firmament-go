@@ -24,10 +24,11 @@ const (
 
 // Represents an arc in the scheduling flow graph.
 type Arc struct {
-	Src     NodeID
-	Dst     NodeID
-	SrcNode *Node
-	DstNode *Node
+	Src        NodeID
+	Dst        NodeID
+	SrcNode    *Node
+	DstNode    *Node
+	//ReverseArc *Arc
 
 	CapLowerBound uint64
 	CapUpperBound uint64

@@ -1,0 +1,61 @@
+c ===========================
+p min 12 31
+c ===========================
+c === ALL NODES FOLLOW ===
+c nd Task_72
+n 11 1 1
+c nd Task_82
+n 12 1 1
+c nd Res_1 RESOURCE_MACHINE
+n 2 0 4
+c nd Res_3 RESOURCE_MACHINE
+n 4 0 4
+c nd Res_4 RESOURCE_MACHINE
+n 5 0 4
+c nd Res_5 RESOURCE_MACHINE
+n 6 0 4
+c nd Task_71
+n 8 1 1
+c nd SINK
+n 1 -4 3
+c nd Res_2 RESOURCE_MACHINE
+n 3 0 4
+c nd UNSCHED_AGG_for_77
+n 7 0 0
+c nd UNSCHED_AGG_for_88
+n 9 0 0
+c nd Task_81
+n 10 1 1
+c === ALL ARCS FOLLOW ===
+a 3 1 0 64 0
+a 8 2 0 4 1562
+a 10 6 0 4 781
+a 11 7 0 8 10001
+a 11 5 0 8 260
+a 6 1 0 64 0
+a 8 4 0 4 1562
+a 4 1 0 64 0
+a 10 2 0 4 781
+a 10 3 0 4 781
+a 11 4 0 8 260
+a 12 3 0 8 260
+a 8 3 0 4 1562
+a 10 9 0 4 10001
+a 12 2 0 8 260
+a 12 6 0 8 260
+a 5 1 0 64 0
+a 11 3 0 8 260
+a 11 2 0 8 260
+a 11 6 0 8 260
+a 12 5 0 8 260
+a 2 1 0 64 0
+a 7 1 0 12 0
+a 9 1 0 12 0
+a 8 6 0 4 1562
+a 10 5 0 4 781
+a 8 7 0 4 10001
+a 8 5 0 4 1562
+a 10 4 0 4 781
+a 12 9 0 8 10001
+a 12 4 0 8 260
+c EOI

@@ -1,13 +1,13 @@
 package flowscheduler
 
 import (
+	"fmt"
 	"log"
 	"time"
 
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/costmodel"
 	"nickren/firmament-go/pkg/scheduling/dimacs"
-	//"nickren/firmament-go/pkg/scheduling/flowgraph"
 	"nickren/firmament-go/pkg/scheduling/flowmanager"
 	ss "nickren/firmament-go/pkg/scheduling/solver"
 	"nickren/firmament-go/pkg/scheduling/utility"
@@ -18,16 +18,17 @@ import (
 // Set of tasks
 type TaskSet map[utility.TaskID]struct{}
 
+var timestart time.Time
+
 type scheduler struct {
 	// TODO: find a way to set these boolean values
 	enableEviction  bool
 	enableMigration bool
 
-	rescheduleTasksOnNodeFailure bool
+	rescheduleTasksOnNodeFailure     bool
 	updateResourceTopologyCapacities bool
 	timeDependentCostUpdateFrequency uint64
-	purgeUnconnectedEcFrequency uint64
-
+	purgeUnconnectedEcFrequency      uint64
 
 	jobMap      *utility.JobMap
 	taskMap     *utility.TaskMap
@@ -64,6 +65,7 @@ type scheduler struct {
 	solverRunCnt uint64
 
 	resourceRoots map[*proto.ResourceTopologyNodeDescriptor]struct{}
+	taskMappings  flowmanager.TaskMapping
 }
 
 func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root *proto.ResourceTopologyNodeDescriptor,
@@ -71,7 +73,8 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 	// Initialize graph manager with cost model
 	leafResourceIDs := make(map[utility.ResourceID]struct{})
 
-	costModel := costmodel.NewCostModel(resourceMap, taskMap, leafResourceIDs)
+	// TODO: refactor maxTasksPerMachine
+	costModel := costmodel.NewCostModel(resourceMap, taskMap, leafResourceIDs, 100)
 
 	s := &scheduler{
 		updateResourceTopologyCapacities: true,
@@ -96,18 +99,25 @@ func NewScheduler(jobMap *utility.JobMap, resourceMap *utility.ResourceMap, root
 
 		tasksCompletedDuringSloverRun: make(map[uint64]struct{}),
 		pusRemovedDuringSolverRun:     make(map[uint64]struct{}),
+		taskMappings:                  flowmanager.TaskMapping{},
 	}
 
 	// TODO: refactor max tasks per PU
 	s.graphManager = flowmanager.NewGraphManager(s.costModel, s.leafResourceIDs, s.dimacsStats, 100)
 	// Set up the initial flow graph
-	s.graphManager.AddResourceTopology(root)
+	//s.graphManager.AddResourceTopology(root)
 
 	// set cost model graph manager
 	//s.costModel.SetFlowGraphManager(s.graphManager)
 
 	// Set up the solver, which starts the flow solver
 	s.solver = ss.NewSolver(s.graphManager)
+
+	// TODO: init flag by cmd
+	s.rescheduleTasksOnNodeFailure = false
+	s.updateResourceTopologyCapacities = false
+	s.timeDependentCostUpdateFrequency = 60
+	s.purgeUnconnectedEcFrequency = 60
 
 	return s
 }
@@ -217,17 +227,15 @@ func (sche *scheduler) DeregisterResource(rtnd *proto.ResourceTopologyNodeDescri
 	}
 
 	// If it is an entire machine that was removed
-	if rtnd.ParentId != "" {
-		delete(sche.resourceRoots, rtnd)
-	}
+	delete(sche.resourceRoots, rtnd)
 
 	sche.dfsCleanStateForDeregisterResource(rtnd)
 
-	if rtnd.ParentId != "" {
-		sche.RemoveResourceNodeFromParentChildrenList(rtnd)
-	} else {
-		log.Println("Deregister a node without a parent")
-	}
+	//if rtnd.ParentId != "" {
+	//	sche.RemoveResourceNodeFromParentChildrenList(rtnd)
+	//} else {
+	//	log.Println("Deregister a node without a parent")
+	//}
 
 }
 
@@ -278,6 +286,13 @@ func (s *scheduler) unbindTaskFromResource(td *proto.TaskDescriptor, rID utility
 	if len(rd.CurrentRunningTasks) == 0 {
 		rd.State = proto.ResourceDescriptor_RESOURCE_IDLE
 	}
+	// We need remove task from rd's running tasks because we need gather resource usage
+	for index, uid := range rd.CurrentRunningTasks {
+		if uid == td.Uid {
+			rd.CurrentRunningTasks = utility.RemoveIndex(rd.CurrentRunningTasks, index)
+			break
+		}
+	}
 	// Remove the task from the resource bindings, return false if not found in the mappings
 	if _, ok := s.TaskBindings[taskID]; !ok {
 		return false
@@ -313,7 +328,6 @@ func (sche *scheduler) HandleTaskCompletion(td *proto.TaskDescriptor, report *pr
 		// do nothing here, add later if needed
 	}
 	// Set task state as completed
-	td.State = proto.TaskDescriptor_COMPLETED
 
 	taskInGraph := true
 	if td.State == proto.TaskDescriptor_FAILED || td.State == proto.TaskDescriptor_ABORTED {
@@ -321,13 +335,15 @@ func (sche *scheduler) HandleTaskCompletion(td *proto.TaskDescriptor, report *pr
 		// removed from the flow network.
 		taskInGraph = false
 	}
+	td.State = proto.TaskDescriptor_COMPLETED
 
 	// We don't need to do any flow graph stuff for delegated tasks as
 	// they are not currently represented in the flow graph.
 	// Otherwise, we need to remove nodes, etc.
 	if len(td.DelegatedFrom) == 0 && taskInGraph {
-		nodeId := sche.graphManager.TaskCompleted(utility.TaskID(td.Uid))
-		sche.tasksCompletedDuringSloverRun[uint64(nodeId)] = struct{}{}
+		nodeID := sche.graphManager.TaskCompleted(utility.TaskID(td.Uid))
+		delete(sche.taskMappings, nodeID)
+		sche.tasksCompletedDuringSloverRun[uint64(nodeID)] = struct{}{}
 	}
 }
 
@@ -369,7 +385,7 @@ func (sche *scheduler) HandleTaskEviction(td *proto.TaskDescriptor, rd *proto.Re
 func (sche *scheduler) HandleTaskFailure(td *proto.TaskDescriptor) {
 	taskID := utility.TaskID(td.Uid)
 	// Flow scheduler related work
-	sche.graphManager.TaskFailed(taskID)
+	nodeID := sche.graphManager.TaskFailed(taskID)
 
 	// Event scheduler related work
 	// Find resource for task
@@ -387,7 +403,7 @@ func (sche *scheduler) HandleTaskFailure(td *proto.TaskDescriptor) {
 	}
 	// Set the task to "failed" state and deal with the consequences
 	td.State = proto.TaskDescriptor_FAILED
-
+	delete(sche.taskMappings, nodeID)
 	// We only need to run the scheduler if the failed task was not delegated from
 	// elsewhere, i.e. if it is managed by the local scheduler. If so, we kick the
 	// scheduler if we haven't exceeded the retry limit.
@@ -403,8 +419,10 @@ func (sche *scheduler) HandleTaskFinalReport(report *proto.TaskFinalReport, td *
 func (sche *scheduler) HandleTaskRemoval(td *proto.TaskDescriptor) {
 	taskID := utility.TaskID(td.Uid)
 	// TODO: add TaskRemoved func for flow graph manager
-	sche.graphManager.TaskRemoved(taskID)
-
+	nodeID := sche.graphManager.TaskRemoved(taskID)
+	delete(sche.taskMappings, nodeID)
+	// TODO: check whether necessary
+	sche.tasksCompletedDuringSloverRun[uint64(nodeID)] = struct{}{}
 	// event scheduler related work
 	// wasRunning := false
 	if td.State == proto.TaskDescriptor_RUNNING {
@@ -420,8 +438,7 @@ func (sche *scheduler) HandleTaskRemoval(td *proto.TaskDescriptor) {
 }
 
 func (sche *scheduler) KillRunningTask(taskID utility.TaskID) {
-	sche.graphManager.TaskKilled(taskID)
-
+	//sche.graphManager.TaskKilled(taskID)
 	// event scheduler related work
 	td := sche.taskMap.FindPtrOrNull(taskID)
 	if td == nil {
@@ -476,7 +493,7 @@ func (sche *scheduler) RegisterResource(rtnd *proto.ResourceTopologyNodeDescript
 		curNode := toVisit.Pop().(*proto.ResourceTopologyNodeDescriptor)
 		// callback
 		curRD := curNode.ResourceDesc
-		if curRD.Type == proto.ResourceDescriptor_RESOURCE_PU {
+		if curRD.Type == proto.ResourceDescriptor_RESOURCE_MACHINE {
 			curRD.Schedulable = true
 			if curRD.State == proto.ResourceDescriptor_RESOURCE_UNKNOWN {
 				curRD.State = proto.ResourceDescriptor_RESOURCE_IDLE
@@ -504,13 +521,16 @@ func (sche *scheduler) RegisterResource(rtnd *proto.ResourceTopologyNodeDescript
 }
 
 func (sche *scheduler) ScheduleAllJobs(stat *utility.SchedulerStats) (uint64, []proto.SchedulingDelta) {
-
+	timestart = time.Now()
 	jds := make([]*proto.JobDescriptor, 0)
 	for _, jobDesc := range sche.jobsToSchedule {
 		// If at least one task is runnable in the job, add it for scheduling
 		if len(sche.ComputeRunnableTasksForJob(jobDesc)) > 0 {
 			jds = append(jds, jobDesc)
 		}
+	}
+	if len(jds) == 0 {
+		log.Printf("there are no jobs need to be scheduled")
 	}
 	// TODO: populate stat info in ScheduleJobs
 	return sche.ScheduleJobs(jds)
@@ -592,7 +612,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 		s.lastUpdateTimeDepentCosts = curTime
 	}
 
-	if s.solverRunCnt % s.purgeUnconnectedEcFrequency == 0 {
+	if s.solverRunCnt%s.purgeUnconnectedEcFrequency == 0 {
 		// periodically remove EC nodes without incoming arcs
 		s.graphManager.PurgeUnconnectedEquivClassNodes()
 	}
@@ -600,16 +620,20 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 	s.pusRemovedDuringSolverRun = make(map[uint64]struct{})
 	s.tasksCompletedDuringSloverRun = make(map[uint64]struct{})
 
+	timeElapsed := time.Since(timestart)
+	fmt.Printf("construct graph took %v\n", timeElapsed)
 	// Run the flow solver! This is where all the juicy goodness happens :)
-	taskMappings := s.solver.Solve()
+	tm := s.solver.MCMFSolve(s.graphManager.GraphChangeManager().Graph())
 	s.solverRunCnt++
 	// firmament will populate max solve runtime and scheduler time stats
 	// and play all the simulation events that happened while the solver was running
 	// ignore here
+	for taskID, resourceID := range tm {
+		s.taskMappings[taskID] = resourceID
+	}
+	deltas := s.graphManager.SchedulingDeltasForPreemptedTasks(s.taskMappings, s.resourceMap)
 
-	deltas := s.graphManager.SchedulingDeltasForPreemptedTasks(taskMappings, s.resourceMap)
-
-	for taskID, resourceID := range taskMappings {
+	for taskID, resourceID := range s.taskMappings {
 		_, ok := s.tasksCompletedDuringSloverRun[uint64(taskID)]
 		if ok {
 			// Ignore the task because it has already completed while the solver
@@ -625,7 +649,7 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 			continue
 		}
 
-		log.Println("bind task to resource")
+		//log.Println("bind task to resource")
 		delta := s.graphManager.NodeBindingToSchedulingDelta(taskID, resourceID, s.TaskBindings)
 		if delta != nil {
 			deltas = append(deltas, *delta)
@@ -644,6 +668,12 @@ func (s *scheduler) runSchedulingIteration() (uint64, []proto.SchedulingDelta) {
 		}
 	}
 
+	// write schedule graph
+	start := time.Now()
+
+	s.solver.WriteGraph("mcmf-after")
+	elapsed := time.Since(start)
+	fmt.Printf("write graph took %s\n", elapsed)
 	return numScheduled, deltas
 }
 

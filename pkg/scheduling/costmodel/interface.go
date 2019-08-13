@@ -18,9 +18,9 @@
 package costmodel
 
 import (
+	"math"
 	pb "nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowgraph"
-	// "nickren/firmament-go/pkg/scheduling/flowmanager"
 	util "nickren/firmament-go/pkg/scheduling/utility"
 )
 
@@ -68,14 +68,37 @@ func NewArcDescriptor(cost int64, capacity, minFlow uint64) ArcDescriptor {
 	}
 }
 
+type RequestSlots int64
+
+type MachineResourceSlots struct {
+	CapacitySlots RequestSlots
+	UsedSlots     RequestSlots
+}
+
+// TODO: add test
+// GetRequestSlots calculate requested slots according ResourceVector
+func NewRequestSlots(request *pb.ResourceVector) RequestSlots {
+	// TODO: machine need ceil, but task need floor
+	requestCPUNum := math.Ceil(float64(request.GetCpuCores()))
+	r := float64(request.GetRamCap()) / 4
+	r = r / float64(1024)
+	slots := math.Min(r, requestCPUNum)
+	return RequestSlots(math.Ceil(slots))
+}
+
+func NewMachineResourceSlots(capacity, used RequestSlots) MachineResourceSlots {
+	return MachineResourceSlots{
+		CapacitySlots: capacity,
+		UsedSlots:     used,
+	}
+}
+
 // CostModeler provides APIs:
 // - Tell the cost of arcs so that graph manager can apply them in graph.
 // - Add, remove tasks, machines (resources) for the cost modeler to update
 //   knowledge. It should be refactored out.
 // - Stats related for cost calculation.
 type CostModeler interface {
-
-	/*SetFlowGraphManager(manager flowmanager.GraphManager)*/
 	// Get the cost from a task node to its unscheduled aggregator node.
 	// The method should return a monotonically increasing value upon subsequent
 	// calls. It is used to adjust the cost of leaving a task unscheduled after

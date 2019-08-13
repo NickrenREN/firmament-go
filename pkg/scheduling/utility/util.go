@@ -82,3 +82,8 @@ func GenerateJobID() JobID {
 func GenerateTaskID() TaskID {
 	return TaskID(RandUint64())
 }
+
+// RemoveIndex remove element by index
+func RemoveIndex(runningTasks []uint64, index int) []uint64 {
+	return append(runningTasks[:index], runningTasks[index+1:]...)
+}

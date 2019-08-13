@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-
 	"nickren/firmament-go/pkg/proto"
 	"nickren/firmament-go/pkg/scheduling/flowscheduler"
 	"nickren/firmament-go/pkg/scheduling/utility"
@@ -43,6 +42,9 @@ func NewSchedulerServer() proto.FirmamentSchedulerServer {
 
 	ss.scheduler = flowscheduler.NewScheduler(ss.jobMap, ss.resourceMap, rs.TopologyNode, ss.taskMap)
 
+	// init map
+	ss.jobTasksNumToRemoveMap = make(map[utility.JobID]uint64)
+	ss.jobIncompleteTasksNumMap = make(map[utility.JobID]uint64)
 	return ss
 }
 
@@ -65,8 +67,10 @@ func (ss *schedulerServer) handleMigrationDelta(delta proto.SchedulingDelta) {
 
 func (ss *schedulerServer) Schedule(context.Context, *proto.ScheduleRequest) (*proto.SchedulingDeltas, error) {
 	schedulerStats := &utility.SchedulerStats{}
-	numScheduled, schedulingDeltas := ss.scheduler.ScheduleAllJobs(schedulerStats)
-	log.Printf("%v tasks are scheduled, scheduling deltas are:%v", numScheduled, schedulingDeltas)
+	//numScheduled, schedulingDeltas := ss.scheduler.ScheduleAllJobs(schedulerStats)
+	//log.Printf("%v tasks are scheduled, scheduling deltas are:%v", numScheduled, schedulingDeltas)
+	_, schedulingDeltas := ss.scheduler.ScheduleAllJobs(schedulerStats)
+
 	schedulingDeltasReturned := &proto.SchedulingDeltas{
 		Deltas: make([]*proto.SchedulingDelta, 0),
 	}
@@ -248,16 +252,15 @@ func (ss *schedulerServer) TaskUpdated(context context.Context, td *proto.TaskDe
 		response.Type = proto.TaskReplyType_TASK_NOT_FOUND
 		return response, nil
 	}
-	// The scheduler will notice that the task's properties (e.g.,
-	// resource requirements, labels) are different and react accordingly.
-	updatedTask := td.TaskDescriptor
-	task.Priority = updatedTask.Priority
-	// TODO: copy from updatedTask instead of setting directly
-	task.ResourceRequest = updatedTask.ResourceRequest
-	task.Labels = updatedTask.Labels
-	task.LabelSelectors = updatedTask.LabelSelectors
-	// We may want to add support for other field updates as well.
-
+	removeResp, err := ss.TaskRemoved(context, &proto.TaskUID{TaskUid: td.TaskDescriptor.Uid})
+	if err != nil || removeResp.Type != proto.TaskReplyType_TASK_REMOVED_OK {
+		log.Panicf("TaskID %v removed failed when updating", taskID)
+	}
+	delete(ss.taskMap.UnsafeGet(), taskID)
+	submitResp, err := ss.TaskSubmitted(context, td)
+	if err != nil || submitResp.Type != proto.TaskReplyType_TASK_SUBMITTED_OK {
+		log.Panicf("TaskID %v submited failed when updating", taskID)
+	}
 	response.Type = proto.TaskReplyType_TASK_UPDATED_OK
 	return response, nil
 }
@@ -310,13 +313,14 @@ func (ss *schedulerServer) NodeAdded(context context.Context, rtnd *proto.Resour
 		return response, nil
 	}
 
-	rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
-	if rootRs == nil {
-		return nil, fmt.Errorf("root resource status is nil")
-	}
+	// Do not need add root resource which is coordinator node
+	// rootRs := ss.resourceMap.FindPtrOrNull(ss.topLevelResID)
+	// if rootRs == nil {
+	//	return nil, fmt.Errorf("root resource status is nil")
+	//}
 
-	rootRs.TopologyNode.Children = append(rootRs.TopologyNode.Children, rtnd)
-	rtnd.ParentId = string(ss.topLevelResID)
+	// rootRs.TopologyNode.Children = append(rootRs.TopologyNode.Children, rtnd)
+	//rtnd.ParentId = strconv.FormatUint(uint64(ss.topLevelResID), 10)
 
 	ss.DFSTraverseResourceProtobufTreeReturnRTND(rtnd)
 
@@ -364,7 +368,7 @@ func (ss *schedulerServer) UpdateNodeLabels(oldRtnd, newRtnd *proto.ResourceTopo
 	oldRD.Labels = make([]*proto.Label, len(newRD.Labels))
 	for _, label := range newRD.Labels {
 		labelCopy := &proto.Label{
-			Key: label.Key,
+			Key:   label.Key,
 			Value: label.Value,
 			// TODO: copy other fields
 		}

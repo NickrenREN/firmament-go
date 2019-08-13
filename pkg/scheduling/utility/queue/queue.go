@@ -18,7 +18,7 @@ import "sync"
 
 // Read Write thread safe FIFO queue data structure.
 type FIFO interface {
-	// Push to the end of a queue.
+	// PushEnd to the end of a queue.
 	Push(val interface{})
 	// Pop from the front of a queue.
 	Pop() interface{}
