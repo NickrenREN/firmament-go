@@ -227,17 +227,15 @@ func (sche *scheduler) DeregisterResource(rtnd *proto.ResourceTopologyNodeDescri
 	}
 
 	// If it is an entire machine that was removed
-	if rtnd.ParentId != "" {
-		delete(sche.resourceRoots, rtnd)
-	}
+	delete(sche.resourceRoots, rtnd)
 
 	sche.dfsCleanStateForDeregisterResource(rtnd)
 
-	if rtnd.ParentId != "" {
-		sche.RemoveResourceNodeFromParentChildrenList(rtnd)
-	} else {
-		log.Println("Deregister a node without a parent")
-	}
+	//if rtnd.ParentId != "" {
+	//	sche.RemoveResourceNodeFromParentChildrenList(rtnd)
+	//} else {
+	//	log.Println("Deregister a node without a parent")
+	//}
 
 }
 
@@ -387,7 +385,7 @@ func (sche *scheduler) HandleTaskEviction(td *proto.TaskDescriptor, rd *proto.Re
 func (sche *scheduler) HandleTaskFailure(td *proto.TaskDescriptor) {
 	taskID := utility.TaskID(td.Uid)
 	// Flow scheduler related work
-	sche.graphManager.TaskFailed(taskID)
+	nodeID := sche.graphManager.TaskFailed(taskID)
 
 	// Event scheduler related work
 	// Find resource for task
@@ -405,7 +403,7 @@ func (sche *scheduler) HandleTaskFailure(td *proto.TaskDescriptor) {
 	}
 	// Set the task to "failed" state and deal with the consequences
 	td.State = proto.TaskDescriptor_FAILED
-
+	delete(sche.taskMappings, nodeID)
 	// We only need to run the scheduler if the failed task was not delegated from
 	// elsewhere, i.e. if it is managed by the local scheduler. If so, we kick the
 	// scheduler if we haven't exceeded the retry limit.
@@ -530,6 +528,9 @@ func (sche *scheduler) ScheduleAllJobs(stat *utility.SchedulerStats) (uint64, []
 		if len(sche.ComputeRunnableTasksForJob(jobDesc)) > 0 {
 			jds = append(jds, jobDesc)
 		}
+	}
+	if len(jds) == 0 {
+		log.Printf("there are no jobs need to be scheduled")
 	}
 	// TODO: populate stat info in ScheduleJobs
 	return sche.ScheduleJobs(jds)

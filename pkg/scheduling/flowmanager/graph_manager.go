@@ -334,22 +334,12 @@ func (gm *graphManager) RemoveResourceTopology(rd *pb.ResourceDescriptor) []flow
 		log.Panic("gm/RemoveResourceTopology: resourceNode cannot be nil\n")
 	}
 	removedPUs := make([]flowgraph.NodeID, 0)
-	capDelta := int64(0)
 	// Delete the children nodes.
-	for _, arc := range rNode.OutgoingArcMap {
-		capDelta -= int64(arc.CapUpperBound)
-		if arc.DstNode.ResourceID != 0 {
-			removedPUs = append(removedPUs, gm.traverseAndRemoveTopology(arc.DstNode)...)
-		}
-	}
 	// Propagate the stats update up to the root resource.
-	gm.updateResourceStatsUpToRoot(rNode, capDelta, -int64(rNode.ResourceDescriptor.NumSlotsBelow), -int64(rNode.ResourceDescriptor.NumRunningTasksBelow))
+	gm.updateResourceStatsUpToRoot(rNode, 0, -int64(rNode.ResourceDescriptor.NumSlotsBelow), -int64(rNode.ResourceDescriptor.NumRunningTasksBelow))
 	// Delete the node.
-	if rNode.Type == flowgraph.NodeTypePu {
-		removedPUs = append(removedPUs, rNode.ID)
-	} else if rNode.Type == flowgraph.NodeTypeMachine {
-		gm.costModeler.RemoveMachine(rNode.ResourceID)
-	}
+	removedPUs = append(removedPUs, rNode.ID)
+	gm.costModeler.RemoveMachine(rNode.ResourceID)
 	gm.removeResourceNode(rNode)
 	return removedPUs
 }
@@ -433,8 +423,9 @@ func (gm *graphManager) removeTaskHelper(taskid utility.TaskID) flowgraph.NodeID
 	return nodeID
 }
 
-func (gm *graphManager) TaskFailed(id utility.TaskID) {
-	gm.removeTaskHelper(id)
+func (gm *graphManager) TaskFailed(id utility.TaskID) flowgraph.NodeID {
+	nodeID := gm.removeTaskHelper(id)
+	return nodeID
 }
 
 func (gm *graphManager) TaskKilled(id utility.TaskID) {

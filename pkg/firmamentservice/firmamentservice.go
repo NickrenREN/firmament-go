@@ -252,16 +252,15 @@ func (ss *schedulerServer) TaskUpdated(context context.Context, td *proto.TaskDe
 		response.Type = proto.TaskReplyType_TASK_NOT_FOUND
 		return response, nil
 	}
-	// The scheduler will notice that the task's properties (e.g.,
-	// resource requirements, labels) are different and react accordingly.
-	updatedTask := td.TaskDescriptor
-	task.Priority = updatedTask.Priority
-	// TODO: copy from updatedTask instead of setting directly
-	task.ResourceRequest = updatedTask.ResourceRequest
-	task.Labels = updatedTask.Labels
-	task.LabelSelectors = updatedTask.LabelSelectors
-	// We may want to add support for other field updates as well.
-
+	removeResp, err := ss.TaskRemoved(context, &proto.TaskUID{TaskUid: td.TaskDescriptor.Uid})
+	if err != nil || removeResp.Type != proto.TaskReplyType_TASK_REMOVED_OK {
+		log.Panicf("TaskID %v removed failed when updating", taskID)
+	}
+	delete(ss.taskMap.UnsafeGet(), taskID)
+	submitResp, err := ss.TaskSubmitted(context, td)
+	if err != nil || submitResp.Type != proto.TaskReplyType_TASK_SUBMITTED_OK {
+		log.Panicf("TaskID %v submited failed when updating", taskID)
+	}
 	response.Type = proto.TaskReplyType_TASK_UPDATED_OK
 	return response, nil
 }

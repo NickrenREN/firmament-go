@@ -40,7 +40,8 @@ var _ = Describe("Firmametservice", func() {
 		Expect(err).Should(BeNil())
 		Expect(response.Type).To(Equal(proto.TaskReplyType_TASK_REMOVED_OK))
 	}
-	var taskUpdate = func(id, core, jobID int) {
+	// TODO: bugs
+	var _ = func(id, core, jobID int) {
 		jdUid := strconv.FormatInt(int64(jobID), 10)
 		td := createMockTaskDescription(jdUid, uint64(jobID*100+id), core)
 		response, err := ss.TaskUpdated(context.Background(), td)
@@ -58,6 +59,12 @@ var _ = Describe("Firmametservice", func() {
 			Expect(err).Should(BeNil())
 		})
 		Expect(runtime.Seconds()).Should(BeNumerically("<", 600), "runtime must be short")
+	}
+	var machineRemoved = func(id int64) {
+		uid := strconv.FormatInt(id, 10)
+		response, err := ss.NodeRemoved(context.Background(), &proto.ResourceUID{ResourceUid: uid})
+		Expect(err).Should(BeNil())
+		Expect(response.Type).To(Equal(proto.NodeReplyType_NODE_REMOVED_OK))
 	}
 	PDescribe("Add Machine using firmament service", func() {
 		Context("start test", func() {
@@ -152,7 +159,7 @@ var _ = Describe("Firmametservice", func() {
 		Context(" start adding tasks", func() {
 			It("add 4 tasks", func() {
 				for i := 1; i <= 4; i++ {
-					addJobs(i, 36, 11)
+					addJobs(i, 32, 11)
 				}
 			})
 		})
@@ -164,7 +171,7 @@ var _ = Describe("Firmametservice", func() {
 		Context(" start adding tasks again", func() {
 			It("add 4 tasks", func() {
 				for i := 1; i <= 4; i++ {
-					addJobs(i, 36, 22)
+					addJobs(i, 32, 22)
 				}
 			})
 		})
@@ -187,10 +194,17 @@ var _ = Describe("Firmametservice", func() {
 				}
 			})
 		})
-		Context(" notify task update", func() {
-			It(" notify 4 tasks updated", func() {
-				for i := 1; i <= 4; i++ {
-					taskUpdate(i, 48, 11)
+		PContext(" notify machine add", func() {
+			It(" notify 4 new machines add", func() {
+				for i := 5; i <= 8; i++ {
+					addMachine(int64(i), 48)
+				}
+			})
+		})
+		Context(" notify machine removed", func() {
+			It(" notify 4 old machines removed", func() {
+				for i := 1; i <= 2; i++ {
+					machineRemoved(int64(i))
 				}
 			})
 		})
