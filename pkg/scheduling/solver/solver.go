@@ -99,7 +99,7 @@ func (fs *flowlesslySolver) MCMFSolve(graph *flowgraph.Graph) flowmanager.TaskMa
 	for mapping, flow := range scheduleResult {
 		if flow != 0 {
 			totalFlow += flow
-			tm[mapping.TaskId] = mapping.ResourceId
+			tm[copyGraph.CopyIdToOriginalIdMap[mapping.TaskId]] = copyGraph.CopyIdToOriginalIdMap[mapping.ResourceId]
 		} else {
 			if mapping.ResourceId == 0 {
 			}

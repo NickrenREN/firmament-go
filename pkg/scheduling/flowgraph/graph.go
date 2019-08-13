@@ -53,6 +53,10 @@ type Graph struct {
 	// Queue storing the ids of the nodes we've previously removed.
 	UnusedIDs queue.FIFO
 
+	// mcmf solve's copied graph will have different node id compare with the original graph to achieve better performance
+	OriginalIdToCopyIdMap map[NodeID]NodeID
+	CopyIdToOriginalIdMap map[NodeID]NodeID
+
 	// Behaviour flag - set as struct field rather than global static variable
 	//                  since we will have only one instance of the FlowGraph.
 	// If true then the flow graph will not generate node ids in order
@@ -101,7 +105,7 @@ func ModifyGraphFromTotalToIncremental(graph *Graph) *Graph {
 		}
 	}
 	incrementalGraph.SourceID = src.ID
-	incrementalGraph.SinkID = 1
+	//incrementalGraph.SinkID = 1
 	fmt.Printf("before mcmf, total request: %v", totalRequest)
 	return incrementalGraph
 }
@@ -113,13 +117,21 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		NodeMap: make(map[NodeID]*Node),
 		TaskSet: make(map[*Node]struct{}),
 		ResourceSet: make(map[*Node]struct{}),
+		OriginalIdToCopyIdMap: make(map[NodeID]NodeID),
+		CopyIdToOriginalIdMap: make(map[NodeID]NodeID),
 	}
-	fg.SinkID = graph.SinkID
-	fg.SourceID = graph.SourceID
-	fg.NextID = graph.NextID
+	//fg.SinkID = graph.SinkID
+	//fg.SourceID = graph.SourceID
+	//fg.NextID = graph.NextID
 
 	var totalRequest uint64 = 0
+	var index int = 1
+	scheduledList := make([]*Node, 0)
 	for id, val := range graph.NodeMap {
+		if id == 1 {
+			fg.SinkID = NodeID(index)
+		}
+
 		if val.Type == NodeTypeUnscheduledTask {
 			var request uint64
 			for _, arc := range val.OutgoingArcMap {
@@ -132,28 +144,44 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 			totalRequest += request
 		}
 
+		if val.IsScheduled() {
+			scheduledList = append(scheduledList, val)
+			continue
+		}
+
 		node := &Node{
-			ID:             id,
+			ID:             NodeID(index),
 			IncomingArcMap: make(map[NodeID]*Arc),
 			OutgoingArcMap: make(map[NodeID]*Arc),
 			Visited: val.Visited,
 			Type: val.Type,
 			Excess: val.Excess,
 			Potential: val.Potential,
+			JobID: val.JobID,
 		}
-		fg.NodeMap[id] = node
-
-
+		fg.NodeMap[node.ID] = node
+		fg.OriginalIdToCopyIdMap[id] = node.ID
+		fg.CopyIdToOriginalIdMap[node.ID] = id
+		index++
 	}
-
+	fg.NextID = NodeID(index)
 	fmt.Printf("The original graph has %v total task requests\n", totalRequest)
 
-	for node, val := range graph.TaskSet {
-		fg.TaskSet[fg.NodeMap[node.ID]] = val
-	}
-
-	for node, val := range graph.ResourceSet {
-		fg.ResourceSet[fg.NodeMap[node.ID]] = val
+	for _, val := range scheduledList {
+		node := &Node{
+			ID:             NodeID(index),
+			IncomingArcMap: make(map[NodeID]*Arc),
+			OutgoingArcMap: make(map[NodeID]*Arc),
+			Visited: val.Visited,
+			Type: val.Type,
+			Excess: val.Excess,
+			Potential: val.Potential,
+			JobID: val.JobID,
+		}
+		fg.NodeMap[node.ID] = node
+		fg.OriginalIdToCopyIdMap[val.ID] = node.ID
+		fg.CopyIdToOriginalIdMap[node.ID] = val.ID
+		index++
 	}
 
 	costMap := make(map[int64]int)
@@ -165,7 +193,8 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 		if arc.Cost > 0 && arc.Cost < 10001 {
 			costArr = append(costArr, float64(arc.Cost))
 		}
-		fg.AddArcWithCapAndCost(arc.Src, arc.Dst, arc.CapUpperBound, arc.Cost)
+		fg.AddArcWithCapAndCost(fg.OriginalIdToCopyIdMap[arc.Src], fg.OriginalIdToCopyIdMap[arc.Dst],
+			arc.CapUpperBound, arc.Cost)
 		if _, ok := costMap[arc.Cost]; ok {
 			costMap[arc.Cost]++
 		} else {
@@ -178,7 +207,6 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 	}
 	hist := histogram.Hist(20, costArr)
 	histogram.Fprint(os.Stdout, hist, histogram.Linear(5))
-
 	fg.UnusedIDs = queue.NewFIFO()
 
 	// TODO might rethink about the implementation here
@@ -187,28 +215,29 @@ func CopyGraph(graph *Graph, modify bool) *Graph {
 			node.Visited = 0
 		}
 		var visitCount uint32 = 1
-		for id, node := range graph.NodeMap {
+		for id, node := range fg.NodeMap {
 			if node.IsScheduled() {
 				fmt.Printf("delete node and it's path %v\n", id)
-				nodeToDelete := fg.Node(id)
+				nodeToDelete := node
 				DFSDeleteNodeFromOriginGraph(fg, nodeToDelete, visitCount)
 				visitCount++
 			}
 		}
 	}
-
+	fg.UnusedIDs = queue.NewFIFO()
 	return fg
 }
 
 func DFSDeleteNodeFromOriginGraph(graph *Graph, nodeToDelete *Node, visitCount uint32) {
 	outArc := nodeToDelete.GetRandomArc()
+	request := outArc.CapUpperBound
 	deque := datastructure.NewDeque(5)
 	deque.PushEnd(nodeToDelete)
 
 	for !deque.IsEmpty() {
 		current := deque.PopEnd().(*Node)
 		for _, arc := range current.OutgoingArcMap {
-			arc.CapUpperBound -= outArc.CapUpperBound
+			arc.CapUpperBound -= request
 			if arc.DstNode.Visited < visitCount {
 				arc.DstNode.Visited = visitCount
 				deque.PushEnd(arc.DstNode)

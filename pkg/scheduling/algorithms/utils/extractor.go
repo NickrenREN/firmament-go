@@ -11,18 +11,18 @@ import (
 )
 
 type Mapping struct {
-	TaskId flowgraph.NodeID
+	TaskId     flowgraph.NodeID
 	ResourceId flowgraph.NodeID
 }
 
 type TaskStruct struct {
 	TaskId flowgraph.NodeID
-	Flow uint64
+	Flow   uint64
 }
 
 type MachineStruct struct {
 	MachineId flowgraph.NodeID
-	Residual uint64
+	Residual  uint64
 }
 
 type BinaryMinHeap []*MachineStruct
@@ -174,6 +174,8 @@ func ExamCostModel(graph *flowgraph.Graph, tm map[flowgraph.NodeID]flowgraph.Nod
 
 	var totalTaskRequest uint64 = 0
 	for taskId, machineId := range tm {
+		taskId = graph.OriginalIdToCopyIdMap[taskId]
+		machineId = graph.OriginalIdToCopyIdMap[machineId]
 		srcNode := graph.Node(taskId)
 		dstNode := graph.Node(machineId)
 		totalTaskRequest += uint64(srcNode.Excess)
@@ -190,16 +192,19 @@ func ExamCostModel(graph *flowgraph.Graph, tm map[flowgraph.NodeID]flowgraph.Nod
 	}
 
 	fmt.Printf("machine total capacity %v, task total request %v, After the MCMF schedule, there are %v unscheduled slots and %v free slots, unscheduled percentage is %v\n",
-		machineTotalCapacity, totalTaskRequest, totalUnScheduledSlots, totalFreeSlots, float64(totalUnScheduledSlots) / float64(totalTaskRequest))
+		machineTotalCapacity, totalTaskRequest, totalUnScheduledSlots, totalFreeSlots, float64(totalUnScheduledSlots)/float64(totalTaskRequest))
 
 	usagePercentage := make([]float64, len(capacityMap))
 	index := 0
 	for id, capacity := range capacityMap {
-		usagePercentage[index] = float64(usageMap[id]) / float64(capacity)
+		if usage, ok := usageMap[id]; !ok {
+			usagePercentage[index] = 0
+		} else {
+			usagePercentage[index] = float64(usage) / float64(capacity)
+		}
 		index++
 	}
 
 	hist := histogram.Hist(10, usagePercentage)
 	histogram.Fprint(os.Stdout, hist, histogram.Linear(5))
 }
-

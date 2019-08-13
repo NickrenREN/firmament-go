@@ -63,7 +63,7 @@ func generateGraphWithPositiveCost() *flowgraph.Graph {
 
 func TestDEsopoPape(t *testing.T) {
 	graph := generateGraphWithCost()
-	distance, parent := DEsopoPape(graph, 1, 7)
+	distance, parent := DEsopoPapeWithSlice(graph, 1, 7)
 
 	if distance[7] != 5 || parent[7] != 5 {
 		t.Errorf("something is wrong")

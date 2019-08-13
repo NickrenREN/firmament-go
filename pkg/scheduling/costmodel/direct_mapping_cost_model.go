@@ -67,19 +67,17 @@ func (dmc *directMappingCostModel) TaskToResourceNode(taskID util.TaskID, resour
 	requestSlots := dmc.getSlotsByTaskID(taskID)
 	machineResourceSlots := dmc.getSlotsByMachineID(resourceID)
 	capacity := machineResourceSlots.CapacitySlots
-	usage := capacity - machineResourceSlots.AvailableSlots
-	if requestSlots > machineResourceSlots.AvailableSlots {
+	usage := machineResourceSlots.UsedSlots
+	availableSlots := capacity - usage
+	if requestSlots > availableSlots {
 		return NewArcDescriptor(0, 0, 0)
 	}
+	// TODO: not implement balanced slots x because the performance of x is bad
 	//x := dmc.getBalancedSlots()
 	x := 1.0
 
 	var factor int64 = 1
 	expectCapacity := float64(capacity) * x
-	if float64(requestSlots) > (float64(capacity) - float64(usage)) {
-		// TODO: factor
-		factor *= 2
-	}
 	cost := float64(maxCapacity*maxCapacity) / ((expectCapacity - float64(usage)) * float64(requestSlots))
 	//log.Printf("resourceID %d 's capacity is %d, expectCapacity is %d, usage is %d, requestSlots is %d "+
 	//	"and cost is %d\n", resourceID, capacity, expectCapacity, usage, requestSlots, cost)
@@ -152,9 +150,8 @@ func (dmc *directMappingCostModel) AddMachine(r *pb.ResourceTopologyNodeDescript
 	if _, ok := dmc.machineToResTopo[id]; !ok {
 		dmc.machineToResTopo[id] = r
 	}
-	// TODO: there is a bug that effect norm result
-	_ = dmc.getSlotsByMachineID(id)
-	//r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
+	capacity := dmc.getSlotsByMachineID(id)
+	r.ResourceDesc.NumSlotsBelow = uint64(capacity.CapacitySlots)
 	return
 }
 
@@ -180,7 +177,7 @@ func (dmc *directMappingCostModel) RemoveMachine(id util.ResourceID) {
 
 func (dmc *directMappingCostModel) RemoveTask(id util.TaskID) {
 	if _, ok := dmc.taskToRequestSlots[id]; ok {
-		dmc.sumMachineCapacitySlots -= dmc.taskToRequestSlots[id]
+		dmc.sumTaskRequestSlots -= dmc.taskToRequestSlots[id]
 		if td := dmc.taskMap.FindPtrOrNull(id); td != nil {
 			jobId := util.MustJobIDFromString(td.GetJobId())
 			dmc.jobToRequestSlots[jobId] -= dmc.taskToRequestSlots[id]
@@ -200,14 +197,8 @@ func (dmc *directMappingCostModel) GatherStats(accumulator, other *flowgraph.Nod
 	}
 	if !other.IsResourceNode() {
 		if other.Type == flowgraph.NodeTypeSink {
-			// TODO: update resource available
-			accumulator.ResourceDescriptor.NumRunningTasksBelow = uint64(len(accumulator.ResourceDescriptor.CurrentRunningTasks))
-			accumulator.ResourceDescriptor.NumSlotsBelow = dmc.maxTasksPerMachine
-			machineResourceSlots := dmc.machineToResourceSlots[accumulator.ResourceID]
-			newAvailableSlots := NewRequestSlots(accumulator.ResourceDescriptor.AvailableResources)
-			dmc.machineToResourceSlots[accumulator.ResourceID] = NewMachineResourceSlots(machineResourceSlots.CapacitySlots, newAvailableSlots)
-			dmc.sumMachineAvailableSlots -= machineResourceSlots.AvailableSlots
-			dmc.sumMachineAvailableSlots += newAvailableSlots
+			accumulator.ResourceDescriptor.NumRunningTasksBelow = dmc.getUsedSlotsByMachineID(accumulator)
+			dmc.updateResourceSlots(accumulator)
 		}
 		return accumulator
 	}
@@ -263,10 +254,10 @@ func (dmc *directMappingCostModel) getSlotsByMachineID(id util.ResourceID) Machi
 	if _, ok := dmc.machineToResourceSlots[id]; !ok {
 		if rtndPtr, ok := dmc.machineToResTopo[id]; ok {
 			capacitySlots := NewRequestSlots(rtndPtr.ResourceDesc.ResourceCapacity)
-			availableSlots := NewRequestSlots(rtndPtr.ResourceDesc.AvailableResources)
+			usedSlots := RequestSlots(0)
+			machineResourceSlots := NewMachineResourceSlots(capacitySlots, usedSlots)
 			dmc.sumMachineCapacitySlots += capacitySlots
-			dmc.sumMachineAvailableSlots += availableSlots
-			machineResourceSlots := NewMachineResourceSlots(capacitySlots, availableSlots)
+			dmc.sumMachineAvailableSlots += capacitySlots - usedSlots
 			dmc.machineToResourceSlots[id] = machineResourceSlots
 			return machineResourceSlots
 		} else {
@@ -276,6 +267,26 @@ func (dmc *directMappingCostModel) getSlotsByMachineID(id util.ResourceID) Machi
 	return dmc.machineToResourceSlots[id]
 }
 
+func (dmc *directMappingCostModel) getUsedSlotsByMachineID(node *flowgraph.Node) uint64 {
+	if len(node.ResourceDescriptor.CurrentRunningTasks) == 0 {
+		return 0
+	}
+	var sum uint64 = 0
+	for _, taskID := range node.ResourceDescriptor.CurrentRunningTasks {
+		sum += uint64(dmc.getSlotsByTaskID(util.TaskID(taskID)))
+	}
+	return sum
+}
+
+func (dmc *directMappingCostModel) updateResourceSlots(node *flowgraph.Node) {
+	oldResourceSlots := dmc.getSlotsByMachineID(node.ResourceID)
+	newUsedSlots := RequestSlots((node.ResourceDescriptor.NumRunningTasksBelow))
+	dmc.sumMachineAvailableSlots += oldResourceSlots.UsedSlots
+	dmc.sumMachineAvailableSlots -= newUsedSlots
+	newResourceSlots := NewMachineResourceSlots(oldResourceSlots.CapacitySlots, newUsedSlots)
+
+	dmc.machineToResourceSlots[node.ResourceID] = newResourceSlots
+}
 func normalizeCost(cost, minBefore, maxBefore, minAfter, maxAfter float64) float64 {
 	return (maxAfter-minAfter)*((cost-minBefore)/(maxBefore-minBefore)) + minAfter
 }
